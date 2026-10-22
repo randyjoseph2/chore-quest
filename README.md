@@ -1,4 +1,4 @@
-<p align="center"><img src="icon.png" width="96" alt="Chore Quest"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/randyjoseph2/chore-quest/main/icon.png" width="96" alt="Chore Quest"></p>
 
 # Chore Quest
 
