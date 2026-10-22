@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.7.4
+- GitHub releases are now published automatically for each new version, so HACS shows proper version numbers and these notes.
+
 ## 2.7.3
 - Each person's header now shows how many of their quests are waiting for the other half of the day (for example "2 for tonight").
 
