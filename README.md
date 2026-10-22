@@ -1,3 +1,5 @@
+<p align="center"><img src="icon.png" width="96" alt="Chore Quest"></p>
+
 # Chore Quest
 
 A gaming-themed family chore and rewards system for Home Assistant. Kids and adults tap quests to earn **coins** (Mario Kart style), then spend them in a prize shop. Everything runs inside Home Assistant: no cloud, no extra add-on, no YAML to maintain.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.1
+- New CQ icon and logo for the integration (shown in Settings > Devices & Services and HACS).
+- Release notes file added so each update has readable highlights.
+
 ## 2.7.0
 - New `mode: summary` overview tile for Home screens, with `open_path` to jump to the full page.
 
