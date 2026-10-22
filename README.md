@@ -14,6 +14,7 @@ Built for a wall tablet and phones from a single card, with an admin-only sideba
   - take turns daily or weekly,
   - **first to tap wins** (one person gets the coins, the others see "Sam got it").
 - **Rooms and groups.** Organise quests by room (Kitchen, Boys Bath, ...) and group rooms (Bathrooms, Bedrooms, ...). Filter buttons on the Quests and Week tabs show what is still open per group.
+- **Day and night quests.** Point Chore Quest at a time-of-day entity and the family card only shows (and only lets people tap) the quests for the current half of the day. Morning and Afternoon quests are the day half, Evening and Night quests are the night half. Quests with no time of day are always available.
 - **Prize shop.** Parents add prizes with a coin cost. Redeeming can send a phone notification.
 - **Week view and Cup.** A week-at-a-glance board and a standings screen.
 - **Per-user snap.** When a logged-in person matches a racer, the card opens on their name (phone) or moves their column first with a YOU tag (tablet).
@@ -57,6 +58,7 @@ The layout follows the card's width: under 720 px you get the phone layout with 
 | `mode` | `admin` | none | Show the admin sidebar layout instead of the family view. |
 | `snap` | `true`, `false` | `true` | Open on the logged-in person's racer. |
 | `title` | text | Chore Quest | Header title. |
+| `phase_filter` | `false` | on | Show every quest on this card, ignoring the time of day. |
 | `parent_tab` | `false` | shown | Hide the Parent tab on the family card. |
 | `back_path` | dashboard path, for example `/tablet-4-0/0` | none | Adds a Home button that navigates there. |
 
@@ -81,6 +83,24 @@ Open the **Parent** tab on the family card, or the admin dashboard:
 4. **Prizes.** Add rewards and costs.
 5. **Settings.** Optional Parent PIN (for the family card), all-done bonus, and a `notify.*` service for prize alerts.
 
+## Day and night quests
+
+Chore Quest reads one entity that reports the time of day, for example an `input_select` or sensor with the states Morning, Afternoon, Evening and Night. Only the first word matters, so values like `Morning` or `Night` with an emoji after them also work.
+
+| Entity state | Counts as |
+|---|---|
+| Morning, Afternoon (also Day, AM) | day |
+| Evening, Night (also PM) | night |
+
+A quest's time of day is its **Times per day** label. A quest with the label `Morning` shows only during the day, and one labelled `Night` shows only at night. Labels it does not recognise, and quests with no label, are always available.
+
+- The Quests tab shows a Day or Night banner with a count of quests waiting for the other half.
+- The server also refuses a tap on a quest from the other half, so it cannot be done early or late.
+- The Week view always shows everything.
+- The `chore_quest.complete_chore` service skips the check, so automations can award any quest at any time.
+- If the entity is missing or has an unrecognised state, nothing is hidden.
+- Turn it off, or change the entity, under **Settings** in the Parent tab or the admin dashboard. The default entity is `input_select.timeofday`.
+
 ## Sensors
 
 One sensor per racer: `sensor.chore_quest_<name>_coins`.
@@ -90,6 +110,7 @@ One sensor per racer: `sensor.chore_quest_<name>_coins`.
 | state | Current coin balance |
 | `streak` | Days in a row with every quest done |
 | `chores_left` / `chores_total` | Today's open and total quests |
+| `chores_left_now` | Open quests that can be done in the current half of the day |
 | `role` | `kid` or `adult` |
 | `member_id`, `date` | Racer id, current day |
 

@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '2.5.2';
+  var CARD_VERSION = '2.6.0';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -140,6 +140,11 @@
     '.chips{display:flex;flex-wrap:wrap;gap:8px}',
     '.homebtn{display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:22px;border:2px solid rgba(255,255,255,.18);background:rgba(255,255,255,.1);color:#fff;font:inherit;font-weight:800;cursor:pointer;margin-right:10px}',
     '.homebtn ha-icon{--mdc-icon-size:20px}',
+    '.phase{display:flex;align-items:center;gap:8px;margin:2px 0 10px;padding:8px 14px;border-radius:16px;font-weight:900;font-size:15px;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.12)}',
+    '.phase.day{border-color:rgba(255,196,0,.55);background:rgba(255,196,0,.12)}',
+    '.phase.night{border-color:rgba(130,120,255,.55);background:rgba(110,100,255,.16)}',
+    '.phase ha-icon{--mdc-icon-size:22px}',
+    '.phase small{margin-left:auto;font-weight:700;font-size:13px;opacity:.8}',
     '.you{margin-left:8px;font-size:11px;font-weight:900;letter-spacing:1px;padding:2px 7px;border-radius:9px;background:#ffd23f;color:#3a2a00;vertical-align:middle}',
     '.adm{display:flex;gap:16px;align-items:flex-start}',
     '.side{flex:none;width:210px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0}',
@@ -297,6 +302,8 @@
 
     set hass(hass) {
       this._hass = hass;
+      var ph = this._phase();
+      if (this._s && ph !== this._lastPhase) { this._lastPhase = ph; this._render(); }
       if (!this._inited && this.isConnected) { this._init(); }
     }
 
@@ -567,6 +574,35 @@
     }
 
 
+    /* ---------------------------------------------------------- time of day */
+    _phase() {
+      if (this._cfg.phase_filter === false || !this._s) { return null; }
+      var set = this._s.settings || {};
+      if (set.phase_filter === false) { return null; }
+      var eid = set.phase_entity;
+      var st = eid && this._hass && this._hass.states ? this._hass.states[eid] : null;
+      var word = st ? String(st.state || '').toLowerCase().match(/[a-z]+/) : null;
+      word = word ? word[0] : '';
+      if (word === 'morning' || word === 'afternoon' || word === 'day' || word === 'am') { return 'day'; }
+      if (word === 'evening' || word === 'night' || word === 'pm') { return 'night'; }
+      return this._s.phase || null;
+    }
+
+    _inPhase(it) {
+      var cur = this._phase();
+      return !cur || !it.phase || it.phase === cur;
+    }
+
+    _phaseBar() {
+      var cur = this._phase();
+      if (!cur) { return h('div'); }
+      var s = this._s;
+      var later = (s.week[s.today] || []).filter(function (i) { return !i.done && !i.taken_by && i.phase && i.phase !== cur; }).length;
+      var kids = [ic(cur === 'day' ? 'mdi:white-balance-sunny' : 'mdi:weather-night'), cur === 'day' ? 'Day quests' : 'Night quests'];
+      if (later) { kids.push(h('small', { text: later + (cur === 'day' ? ' waiting for tonight' : ' waiting for tomorrow') })); }
+      return h('div', { cls: 'phase ' + cur }, kids);
+    }
+
     /* ---------------------------------------------------------- rooms */
     _area(id) {
       var a = this._s.areas || [];
@@ -662,11 +698,13 @@
         var m = this._selected();
         var wrap = h('div');
         wrap.appendChild(this._pickRow());
+        wrap.appendChild(this._phaseBar());
         wrap.appendChild(this._areaBar());
         wrap.appendChild(this._memberColumn(m, true));
         return wrap;
       }
       var all = h('div');
+      all.appendChild(this._phaseBar());
       all.appendChild(this._areaBar());
       var cols = h('div', { cls: 'cols' });
       this._ordered().forEach(function (mm) { cols.appendChild(self._memberColumn(mm, false)); });
@@ -677,7 +715,7 @@
     _memberColumn(m, bare) {
       var self = this;
       var s = this._s;
-      var items = (s.week[s.today] || []).filter(function (i) { return i.member_id === m.id && self._inFilter(self._chore(i.chore_id)); });
+      var items = (s.week[s.today] || []).filter(function (i) { return i.member_id === m.id && self._inFilter(self._chore(i.chore_id)) && self._inPhase(i); });
       function rank(i) { return i.taken_by ? 2 : (i.done ? 1 : 0); }
       items.sort(function (a, b) { return rank(a) - rank(b); });
       var done = m.total - m.left;
@@ -692,7 +730,7 @@
       var pct = m.total ? Math.round(done * 100 / m.total) : 0;
       col.appendChild(h('div', { cls: 'pbar', style: bare ? 'margin-bottom:10px' : '' }, [h('i', { style: 'width:' + pct + '%' })]));
       if (!items.length) {
-        col.appendChild(h('div', { cls: 'empty' }, [ic('mdi:flag-checkered'), this._grp ? 'Nothing here today' : 'No quests today']));
+        col.appendChild(h('div', { cls: 'empty' }, [ic('mdi:flag-checkered'), this._grp ? 'Nothing here right now' : (this._phase() ? 'All clear for now' : 'No quests today')]));
       }
       items.forEach(function (it) {
         var ch = self._chore(it.chore_id);
@@ -1139,6 +1177,8 @@
       var sec = h('div', { cls: 'sec' }, [h('div', { cls: 'h2', text: 'Settings' })]);
       sec.appendChild(h('div', { cls: 'row' }, [h('div', { cls: 'rt' }, [h('b', { text: 'Parent PIN' }), h('small', { text: st.has_pin ? 'Set (only used on the kid dashboards)' : 'Not set' })])]));
       sec.appendChild(h('div', { cls: 'row' }, [h('div', { cls: 'rt' }, [h('b', { text: 'Bonus for clearing every quest' }), h('small', { text: String(st.all_done_bonus || 0) + ' coins' })])]));
+      var now = this._phase();
+      sec.appendChild(h('div', { cls: 'row' }, [h('div', { cls: 'rt' }, [h('b', { text: 'Day and night quests' }), h('small', { text: (st.phase_filter === false ? 'Off' : 'On') + ' - ' + (st.phase_entity || 'no entity') + (now ? ' - now: ' + now : '') })])]));
       sec.appendChild(h('div', { cls: 'row' }, [h('div', { cls: 'rt' }, [h('b', { text: 'Prize notifications' }), h('small', { text: st.notify_service || 'Off' })])]));
       sec.appendChild(h('button', { cls: 'btn go', style: 'width:100%;margin-top:6px', onclick: function () { self._settingsForm(); } }, [ic('mdi:pencil'), ' Edit settings']));
       return sec;
@@ -1253,7 +1293,7 @@
         body: [
           field('Name', name), field('Room', areaPick.el), field('Icon', this._iconGrid(CHORE_ICONS, iconIn)), field('Or type any mdi icon', iconIn),
           field('Coins earned', stepper), field('Who does it', who.el), field('How often', freq.el), daysRow, dateRow,
-          field('Times per day (each one earns coins)', slotsBox),
+          field('Times per day (each one earns coins). Morning and Afternoon show during the day, Evening and Night show at night', slotsBox),
           field('Shared quests', rotate.el),
           field('Who gets the coins', claim.el)
         ],
@@ -1371,16 +1411,21 @@
       var pin = h('input', { cls: 'inp', type: 'text', inputmode: 'numeric', placeholder: 'Blank = no PIN', maxlength: '8' });
       var bonus = h('input', { cls: 'inp', type: 'number', value: String(st.all_done_bonus || 0), min: '0', max: '20', inputmode: 'numeric' });
       var svc = h('input', { cls: 'inp', type: 'text', value: st.notify_service || '', placeholder: 'notify.mobile_app_...' });
+      var phaseIn = h('input', { cls: 'inp', type: 'text', value: st.phase_entity || '', placeholder: 'input_select.timeofday' });
+      var phaseOn = picker([{ v: 'on', label: 'On - show only quests for now' }, { v: 'off', label: 'Off - show every quest' }], [st.phase_filter === false ? 'off' : 'on'], false);
       this._openModal({
         title: 'Settings',
         body: [
           field(st.has_pin ? 'New parent PIN (leave empty to keep)' : 'Parent PIN', pin),
           field('Bonus coins for clearing every quest (0 = off)', bonus),
-          field('Notify when a prize is redeemed', svc)
+          field('Notify when a prize is redeemed', svc),
+          field('Day and night quests', phaseOn.el),
+          field('Time of day entity (Morning/Afternoon = day, Evening/Night = night)', phaseIn)
         ],
         actions: [{ label: 'Cancel', cls: 'alt' }, { label: 'Save', cls: 'go', fn: function () {
           var payload = {
-            all_done_bonus: parseInt(bonus.value, 10) || 0, notify_service: svc.value
+            all_done_bonus: parseInt(bonus.value, 10) || 0, notify_service: svc.value,
+            phase_entity: phaseIn.value, phase_filter: (phaseOn.get()[0] || 'on') === 'on'
           };
           var newPin = pin.value.replace(/\D/g, '');
           if (newPin) { payload.pin = newPin; }

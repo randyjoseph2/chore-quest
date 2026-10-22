@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.0
+- Day and night quests: the family card shows only the quests for the current half of the day, from a time-of-day entity. Morning and Afternoon are day, Evening and Night are night. Taps on the other half are refused by the server.
+- New `chores_left_now` sensor attribute.
+- New Settings fields for the time-of-day entity and an on/off switch, plus a `phase_filter: false` card option.
+
 ## 2.5.2
 - New `parent_tab: false` card option hides the Parent tab (use the admin dashboard instead).
 

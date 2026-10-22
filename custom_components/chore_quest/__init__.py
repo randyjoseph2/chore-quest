@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "2.5.0"
+VERSION = "2.6.0"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -43,11 +43,30 @@ ADMIN_ACTIONS = {
     "set_settings",
 }
 
+DAY_WORDS = {"morning", "afternoon", "day", "am"}
+NIGHT_WORDS = {"evening", "night", "pm"}
+
 DEFAULT_SETTINGS = {
+    "phase_entity": "input_select.timeofday",
+    "phase_filter": True,
     "pin": "",
     "all_done_bonus": 0,
     "notify_service": "notify.mobile_app_randys_iphone",
 }
+
+
+def phase_of_text(text: Any) -> str | None:
+    """Map a slot label or a time-of-day state to "day" or "night" (None = not time bound).
+
+    Matches on the first word, so "Morning", "morning" and "Morning (sun emoji)" all count.
+    """
+    m = re.match(r"[a-z]+", str(text or "").strip().lower())
+    word = m.group(0) if m else ""
+    if word in DAY_WORDS:
+        return "day"
+    if word in NIGHT_WORDS:
+        return "night"
+    return None
 
 
 def _uid() -> str:
@@ -146,6 +165,7 @@ class ChoreQuest:
         self.store = Store(hass, STORAGE_VERSION, DOMAIN)
         self.data: dict[str, Any] = {}
         self._sensor_ids: set[str] = set()
+        self._phase_unsub = None
 
     # ------------------------------------------------------------ storage
     async def async_load(self) -> None:
@@ -231,6 +251,32 @@ class ChoreQuest:
         self.data["ledger"] = self.data["ledger"][-LEDGER_MAX:]
 
     # ------------------------------------------------------------ lookups
+    def phase(self) -> str | None:
+        """Current "day" or "night" from the time-of-day entity; None when unknown or off."""
+        s = self.data["settings"]
+        eid = s.get("phase_entity") or ""
+        if not eid or s.get("phase_filter") is False:
+            return None
+        st = self.hass.states.get(eid)
+        return phase_of_text(st.state) if st is not None else None
+
+    def track_phase(self) -> None:
+        """Refresh sensors and the cards whenever the time-of-day entity changes."""
+        from homeassistant.helpers.event import async_track_state_change_event
+
+        if self._phase_unsub:
+            self._phase_unsub()
+            self._phase_unsub = None
+        eid = self.data["settings"].get("phase_entity") or ""
+        if not eid:
+            return
+
+        def changed(_event) -> None:
+            self.publish_states()
+            self.hass.bus.async_fire(EVENT_UPDATED, {"action": "phase"})
+
+        self._phase_unsub = async_track_state_change_event(self.hass, [eid], changed)
+
     def today(self) -> dt.date:
         return dt_util.now().date()
 
@@ -334,6 +380,7 @@ class ChoreQuest:
                             "member_id": mid,
                             "slot": idx,
                             "label": label,
+                            "phase": phase_of_text(label),
                             "done": mine,
                             "taken_by": owner if owner and owner != mid and not mine else "",
                         }
@@ -403,6 +450,7 @@ class ChoreQuest:
         monday = today - dt.timedelta(days=today.weekday())
         dates = [(monday + dt.timedelta(days=i)).isoformat() for i in range(7)]
         week = {d: self.due(dt.date.fromisoformat(d)) for d in dates}
+        cur = self.phase()
         members = []
         for m in self.data["members"]:
             mine = [i for i in week[today.isoformat()] if i["member_id"] == m["id"] and not i["taken_by"]]
@@ -412,6 +460,7 @@ class ChoreQuest:
                     streak=self.streak_now(m["id"]),
                     total=len(mine),
                     left=len([i for i in mine if not i["done"]]),
+                    left_now=len([i for i in mine if not i["done"] and (not cur or not i["phase"] or i["phase"] == cur)]),
                 )
             )
         settings = {k: v for k, v in self.data["settings"].items() if k != "pin"}
@@ -419,6 +468,7 @@ class ChoreQuest:
         return {
             "version": VERSION,
             "today": today.isoformat(),
+            "phase": cur,
             "week_dates": dates,
             "members": members,
             "chores": self.data["chores"],
@@ -449,6 +499,7 @@ class ChoreQuest:
                     "streak": m["streak"],
                     "chores_total": m["total"],
                     "chores_left": m["left"],
+                    "chores_left_now": m["left_now"],
                     "date": today,
                 },
             )
@@ -484,12 +535,17 @@ class ChoreQuest:
         m = self.member(p.get("member_id"))
         if not ch or not m:
             raise ValueError("Unknown chore or member")
-        return self.complete(ch, m, _clean_int(p.get("slot"), 0, 9, 0))
+        return self.complete(ch, m, _clean_int(p.get("slot"), 0, 9, 0), enforce_phase=not p.get("force"))
 
-    def complete(self, ch: dict, m: dict, slot: int = 0) -> dict:
+    def complete(self, ch: dict, m: dict, slot: int = 0, enforce_phase: bool = True) -> dict:
         today = self.today()
         if m["id"] not in self.assignees_on(ch, today) or slot >= len(self.slots_of(ch)):
             raise ValueError("That quest is not on the board today")
+        if enforce_phase:
+            cur = self.phase()
+            want = phase_of_text(self.slots_of(ch)[slot])
+            if cur and want and want != cur:
+                raise ValueError("That quest is for the %s" % ("day" if want == "day" else "night"))
         key = self._key(today, ch["id"], m["id"], slot)
         if key in self.data["completions"]:
             return {"already": True}
@@ -727,6 +783,12 @@ class ChoreQuest:
             s["pin"] = pin
         if "all_done_bonus" in p:
             s["all_done_bonus"] = _clean_int(p.get("all_done_bonus"), 0, 20, 0)
+        if "phase_entity" in p:
+            eid = str(p.get("phase_entity") or "").strip().lower()
+            s["phase_entity"] = eid if re.fullmatch(r"[a-z_]+\.[a-z0-9_]+", eid) else ""
+            self.track_phase()
+        if "phase_filter" in p:
+            s["phase_filter"] = bool(p.get("phase_filter"))
         if "notify_service" in p:
             s["notify_service"] = _clean_str(p.get("notify_service"), 80)
         return {}
@@ -791,7 +853,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         if not m or not ch:
             raise ValueError("Unknown member or chore")
         await mgr.async_action(
-            "complete", {"chore_id": ch["id"], "member_id": m["id"], "slot": call.data.get("slot", 0)}, ""
+            "complete", {"chore_id": ch["id"], "member_id": m["id"], "slot": call.data.get("slot", 0), "force": True}, ""
         )
 
     hass.services.async_register(
@@ -824,5 +886,6 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         hass.bus.async_fire(EVENT_UPDATED, {"action": "new_day"})
 
     async_track_time_change(hass, midnight, hour=0, minute=0, second=5)
+    mgr.track_phase()
     mgr.publish_states()
     return True
