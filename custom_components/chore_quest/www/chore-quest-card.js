@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '2.7.2';
+  var CARD_VERSION = '2.7.3';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -185,6 +185,7 @@
     '.ab i{font-style:normal;min-width:20px;height:20px;border-radius:10px;background:#ff5a67;color:#fff;font-size:12px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}',
     '.ab i.z{background:rgba(255,255,255,.15);color:#c9d0ff}',
     '.cp{border:2px solid rgba(255,255,255,.25);background:rgba(255,255,255,.07);color:#fff;font:inherit;font-weight:800;border-radius:12px;padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:6px}',
+    '.later{color:#ffd23f;font-weight:800}',
     '.cp.on{background:#ffd23f;color:#2b1700;border-color:#ffd23f}',
     '.cp.ic{padding:8px}.cp.ic ha-icon{--mdc-icon-size:24px}',
     '.cp .dot{width:14px;height:14px;border-radius:50%;background:var(--mc)}',
@@ -785,6 +786,11 @@
       var done = m.total - m.left;
       var col = h('div', { cls: bare ? '' : 'col', style: '--mc:' + m.color });
       var subs = [h('span', null, [done + '/' + m.total + ' done'])];
+      var curPh = this._phase();
+      if (curPh) {
+        var later = (s.week[s.today] || []).filter(function (i) { return i.member_id === m.id && !i.done && !i.taken_by && i.phase && i.phase !== curPh; }).length;
+        if (later) { subs.push(h('span', { cls: 'later', text: later + (curPh === 'day' ? ' for tonight' : ' for tomorrow') })); }
+      }
       if (m.streak > 0) { subs.push(h('span', { style: 'display:flex;align-items:center;gap:2px' }, [ic('mdi:fire'), m.streak + ' day streak'])); }
       col.appendChild(h('div', { cls: 'mh', style: bare ? 'margin-bottom:10px' : '' }, [
         avatar(m, 52),
