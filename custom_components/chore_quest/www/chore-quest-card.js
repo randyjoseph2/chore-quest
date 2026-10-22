@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '2.6.0';
+  var CARD_VERSION = '2.6.1';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -1121,10 +1121,14 @@
       var self = this;
       var s = this._s;
       var narrow = !!this._mobile;
-      var menu = this._amenu || 'overview';
+      if (!this._amenu) {
+        try { this._amenu = window.localStorage.getItem('chore_quest_admin_menu') || ''; } catch (e) { /* ignore */ }
+        if (!this._amenu) { this._amenu = 'overview'; }
+      }
+      var menu = this._amenu;
       var side = h('div', { cls: 'side' });
       this._adminMenu().forEach(function (it) {
-        side.appendChild(h('button', { cls: menu === it.id ? 'on' : '', onclick: function () { self._amenu = it.id; self._render(); } },
+        side.appendChild(h('button', { cls: menu === it.id ? 'on' : '', onclick: function () { self._gotoMenu(it.id); } },
           [ic(it.icon), it.label, it.n !== undefined ? h('em', { text: String(it.n) }) : null]));
       });
       var content = h('div', { cls: 'content' });
@@ -1144,6 +1148,16 @@
         content.appendChild(this._secOverview());
       }
       return h('div', { cls: 'adm' + (narrow ? ' narrow' : '') }, [side, content]);
+    }
+
+    _gotoMenu(id) {
+      if (id === this._amenu) { return; }
+      this._ascroll = this._ascroll || {};
+      if (this._mainEl) { this._ascroll[this._amenu] = this._mainEl.scrollTop; }
+      this._amenu = id;
+      try { window.localStorage.setItem('chore_quest_admin_menu', id); } catch (e) { /* ignore */ }
+      this._render();
+      if (this._mainEl) { this._mainEl.scrollTop = this._ascroll[id] || 0; }
     }
 
     _secOverview() {
@@ -1411,6 +1425,7 @@
       var pin = h('input', { cls: 'inp', type: 'text', inputmode: 'numeric', placeholder: 'Blank = no PIN', maxlength: '8' });
       var bonus = h('input', { cls: 'inp', type: 'number', value: String(st.all_done_bonus || 0), min: '0', max: '20', inputmode: 'numeric' });
       var svc = h('input', { cls: 'inp', type: 'text', value: st.notify_service || '', placeholder: 'notify.mobile_app_...' });
+      var dayStart = h('input', { cls: 'inp', type: 'number', value: String(st.day_start_hour === undefined ? 2 : st.day_start_hour), min: '0', max: '6', inputmode: 'numeric' });
       var phaseIn = h('input', { cls: 'inp', type: 'text', value: st.phase_entity || '', placeholder: 'input_select.timeofday' });
       var phaseOn = picker([{ v: 'on', label: 'On - show only quests for now' }, { v: 'off', label: 'Off - show every quest' }], [st.phase_filter === false ? 'off' : 'on'], false);
       this._openModal({
@@ -1419,13 +1434,14 @@
           field(st.has_pin ? 'New parent PIN (leave empty to keep)' : 'Parent PIN', pin),
           field('Bonus coins for clearing every quest (0 = off)', bonus),
           field('Notify when a prize is redeemed', svc),
+          field('New chore day starts at (hour, 0 to 6)', dayStart),
           field('Day and night quests', phaseOn.el),
           field('Time of day entity (Morning/Afternoon = day, Evening/Night = night)', phaseIn)
         ],
         actions: [{ label: 'Cancel', cls: 'alt' }, { label: 'Save', cls: 'go', fn: function () {
           var payload = {
             all_done_bonus: parseInt(bonus.value, 10) || 0, notify_service: svc.value,
-            phase_entity: phaseIn.value, phase_filter: (phaseOn.get()[0] || 'on') === 'on'
+            day_start_hour: parseInt(dayStart.value, 10) || 0, phase_entity: phaseIn.value, phase_filter: (phaseOn.get()[0] || 'on') === 'on'
           };
           var newPin = pin.value.replace(/\D/g, '');
           if (newPin) { payload.pin = newPin; }

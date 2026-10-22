@@ -99,6 +99,7 @@ A quest's time of day is its **Times per day** label. A quest with the label `Mo
 - The Week view always shows everything.
 - The `chore_quest.complete_chore` service skips the check, so automations can award any quest at any time.
 - If the entity is missing or has an unrecognised state, nothing is hidden.
+- The chore day rolls over at 2 AM by default (not midnight), so the day half starts together with a new day's quests. Change this with **New chore day starts at** in Settings (0 to 6).
 - Turn it off, or change the entity, under **Settings** in the Parent tab or the admin dashboard. The default entity is `input_select.timeofday`.
 
 ## Sensors

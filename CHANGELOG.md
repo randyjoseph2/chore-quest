@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.6.1
+- The chore day now rolls over at 2 AM by default instead of midnight (setting: New chore day starts at). Night quests stay open until then.
+- Admin dashboard remembers each menu's scroll position and reopens on the menu you were last using.
+
 ## 2.6.0
 - Day and night quests: the family card shows only the quests for the current half of the day, from a time-of-day entity. Morning and Afternoon are day, Evening and Night are night. Taps on the other half are refused by the server.
 - New `chores_left_now` sensor attribute.

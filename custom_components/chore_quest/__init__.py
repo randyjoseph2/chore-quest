@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "2.6.0"
+VERSION = "2.6.1"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -47,6 +47,7 @@ DAY_WORDS = {"morning", "afternoon", "day", "am"}
 NIGHT_WORDS = {"evening", "night", "pm"}
 
 DEFAULT_SETTINGS = {
+    "day_start_hour": 2,
     "phase_entity": "input_select.timeofday",
     "phase_filter": True,
     "pin": "",
@@ -166,6 +167,7 @@ class ChoreQuest:
         self.data: dict[str, Any] = {}
         self._sensor_ids: set[str] = set()
         self._phase_unsub = None
+        self._roll_unsub = None
 
     # ------------------------------------------------------------ storage
     async def async_load(self) -> None:
@@ -278,7 +280,22 @@ class ChoreQuest:
         self._phase_unsub = async_track_state_change_event(self.hass, [eid], changed)
 
     def today(self) -> dt.date:
-        return dt_util.now().date()
+        """The chore day. It rolls over at day_start_hour (default 2 AM), not at midnight."""
+        start = _clean_int((self.data.get("settings") or {}).get("day_start_hour"), 0, 6, 0)
+        return (dt_util.now() - dt.timedelta(hours=start)).date()
+
+    def track_rollover(self) -> None:
+        """Start the new chore day at day_start_hour."""
+        if self._roll_unsub:
+            self._roll_unsub()
+            self._roll_unsub = None
+        start = _clean_int(self.data["settings"].get("day_start_hour"), 0, 6, 0)
+
+        def rolled(_now) -> None:
+            self.publish_states()
+            self.hass.bus.async_fire(EVENT_UPDATED, {"action": "new_day"})
+
+        self._roll_unsub = async_track_time_change(self.hass, rolled, hour=start, minute=0, second=5)
 
     def member(self, mid: Any) -> dict | None:
         for m in self.data["members"]:
@@ -787,6 +804,9 @@ class ChoreQuest:
             eid = str(p.get("phase_entity") or "").strip().lower()
             s["phase_entity"] = eid if re.fullmatch(r"[a-z_]+\.[a-z0-9_]+", eid) else ""
             self.track_phase()
+        if "day_start_hour" in p:
+            s["day_start_hour"] = _clean_int(p.get("day_start_hour"), 0, 6, 2)
+            self.track_rollover()
         if "phase_filter" in p:
             s["phase_filter"] = bool(p.get("phase_filter"))
         if "notify_service" in p:
@@ -881,11 +901,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         ),
     )
 
-    def midnight(_now) -> None:
-        mgr.publish_states()
-        hass.bus.async_fire(EVENT_UPDATED, {"action": "new_day"})
-
-    async_track_time_change(hass, midnight, hour=0, minute=0, second=5)
+    mgr.track_rollover()
     mgr.track_phase()
     mgr.publish_states()
     return True
