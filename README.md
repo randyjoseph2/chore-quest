@@ -60,7 +60,22 @@ The layout follows the card's width: under 720 px you get the phone layout with 
 | `title` | text | Chore Quest | Header title. |
 | `phase_filter` | `false` | on | Show every quest on this card, ignoring the time of day. |
 | `parent_tab` | `false` | shown | Hide the Parent tab on the family card. |
+| `mode` (summary) | `summary` | none | Compact overview tile for a Home screen: a coin and progress ring per racer, the day or night banner, and one tap to open the full page. |
+| `open_path` | dashboard path, for example `/tablet-4-0/chores` | none | Where the summary tile navigates when tapped. |
 | `back_path` | dashboard path, for example `/tablet-4-0/0` | none | Adds a Home button that navigates there. |
+
+### Overview tile for a Home screen
+
+```yaml
+type: custom:chore-quest-card
+mode: summary
+open_path: /tablet-4-0/chores
+grid_options:
+  columns: full
+  rows: auto
+```
+
+It shows each racer's progress ring, quests left for the current half of the day, and coins, and opens the full card when tapped.
 
 ### Admin dashboard
 

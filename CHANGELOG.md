@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.7.0
+- New `mode: summary` overview tile for Home screens, with `open_path` to jump to the full page.
+
 ## 2.6.1
 - The chore day now rolls over at 2 AM by default instead of midnight (setting: New chore day starts at). Night quests stay open until then.
 - Admin dashboard remembers each menu's scroll position and reopens on the menu you were last using.
