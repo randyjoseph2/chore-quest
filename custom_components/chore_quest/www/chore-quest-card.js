@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '2.7.1';
+  var CARD_VERSION = '2.7.2';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -1331,9 +1331,28 @@
       var who = picker(s.members.map(function (m) { return { v: m.id, label: m.name, color: m.color }; }), c.assignees, true);
       var slotsIn = h('input', { cls: 'inp', type: 'text', value: (c.slots || []).join(', '), placeholder: 'Blank = once a day' });
       var slotQuick = h('div', { cls: 'chips', style: 'margin-top:8px' });
-      [['Once a day', ''], ['Morning + Night', 'Morning, Night'], ['Night only', 'Night'], ['Morning, Afternoon, Night', 'Morning, Afternoon, Night']].forEach(function (q) {
-        slotQuick.appendChild(h('button', { cls: 'cp', type: 'button', text: q[0], onclick: function () { slotsIn.value = q[1]; } }));
+      var TIMES = ['Morning', 'Afternoon', 'Evening', 'Night'];
+      var timeBtns = [];
+      function slotList() { return slotsIn.value.split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x; }); }
+      function syncTimes() {
+        var cur = slotList().map(function (x) { return x.toLowerCase(); });
+        timeBtns.forEach(function (b) { b.btn.className = 'cp' + (cur.indexOf(b.t.toLowerCase()) >= 0 ? ' on' : ''); });
+      }
+      slotQuick.appendChild(h('button', { cls: 'cp', type: 'button', text: 'Once a day', onclick: function () { slotsIn.value = ''; syncTimes(); } }));
+      TIMES.forEach(function (t) {
+        var btn = h('button', { cls: 'cp', type: 'button', text: t, onclick: function () {
+          var cur = slotList();
+          var at = cur.map(function (x) { return x.toLowerCase(); }).indexOf(t.toLowerCase());
+          if (at >= 0) { cur.splice(at, 1); } else { cur.push(t); }
+          cur.sort(function (a, b) { return TIMES.indexOf(a) - TIMES.indexOf(b); });
+          slotsIn.value = cur.join(', ');
+          syncTimes();
+        } });
+        timeBtns.push({ t: t, btn: btn });
+        slotQuick.appendChild(btn);
       });
+      slotsIn.addEventListener('input', syncTimes);
+      syncTimes();
       var slotsBox = h('div', null, [slotsIn, slotQuick]);
       var claim = picker([{ v: 'each', label: 'Everyone assigned does it' }, { v: 'first', label: 'First to tap gets it' }], [c.claim === 'first' ? 'first' : 'each'], false);
       var daysRow = h('div');

@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.7.2
+- Chore form: tap-to-toggle Morning, Afternoon, Evening and Night buttons (any combination, including Morning only) replace the fixed presets.
+
 ## 2.7.1
 - New CQ icon and logo for the integration (shown in Settings > Devices & Services and HACS).
 - Release notes file added so each update has readable highlights.
