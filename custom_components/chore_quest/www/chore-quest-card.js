@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '2.5.1';
+  var CARD_VERSION = '2.5.2';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -455,7 +455,7 @@
       if (this._tab === 'week') { view = this._weekView(); }
       else if (this._tab === 'shop') { view = this._shopView(); }
       else if (this._tab === 'cup') { view = this._cupView(); }
-      else if (this._tab === 'parent') { view = this._parentView(); }
+      else if (this._tab === 'parent' && this._cfg.parent_tab !== false) { view = this._parentView(); }
       else { view = this._todayView(); }
       if (this._cfg.mode === 'admin') { view = this._adminView(); }
       main.appendChild(view);
@@ -481,6 +481,12 @@
     }
 
     _tabs() {
+      var all = this._allTabs();
+      if (this._cfg.parent_tab === false) { all = all.filter(function (t) { return t.id !== 'parent'; }); }
+      return all;
+    }
+
+    _allTabs() {
       return [
         { id: 'today', label: 'Quests', icon: 'mdi:flag-checkered' },
         { id: 'week', label: 'Week', icon: 'mdi:calendar-week' },

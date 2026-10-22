@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.5.2
+- New `parent_tab: false` card option hides the Parent tab (use the admin dashboard instead).
+
 ## 2.5.1
 - New `back_path` card option adds a Home button to the top bar, for kiosk layouts with no header.
 
