@@ -26,7 +26,7 @@ Built for a wall tablet and phones from a single card, with an admin-only sideba
 ### With HACS (recommended)
 
 1. HACS > three-dot menu > **Custom repositories**.
-2. Add `https://github.com/YOUR_GITHUB_USER/chore-quest` with category **Integration**.
+2. Add `https://github.com/randyjoseph2/chore-quest` with category **Integration**.
 3. Install **Chore Quest** and restart Home Assistant.
 
 Updates then appear in HACS like any other integration.

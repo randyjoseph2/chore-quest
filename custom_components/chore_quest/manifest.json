@@ -1,12 +1,12 @@
 {
   "domain": "chore_quest",
   "name": "Chore Quest",
-  "codeowners": ["@YOUR_GITHUB_USER"],
+  "codeowners": ["@randyjoseph2"],
   "dependencies": ["websocket_api", "http", "frontend"],
-  "documentation": "https://github.com/YOUR_GITHUB_USER/chore-quest",
+  "documentation": "https://github.com/randyjoseph2/chore-quest",
   "integration_type": "service",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/YOUR_GITHUB_USER/chore-quest/issues",
+  "issue_tracker": "https://github.com/randyjoseph2/chore-quest/issues",
   "requirements": [],
   "version": "2.5.0"
 }
