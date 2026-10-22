@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '2.5';
+  var CARD_VERSION = '2.5.1';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -138,6 +138,8 @@
     '.fl{display:block;font-weight:900;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#9fb0ff;margin:12px 0 6px}',
     '.inp{width:100%;padding:12px;border-radius:12px;border:2px solid rgba(255,255,255,.25);background:rgba(0,0,0,.35);color:#fff;font:inherit;font-size:16px}',
     '.chips{display:flex;flex-wrap:wrap;gap:8px}',
+    '.homebtn{display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:22px;border:2px solid rgba(255,255,255,.18);background:rgba(255,255,255,.1);color:#fff;font:inherit;font-weight:800;cursor:pointer;margin-right:10px}',
+    '.homebtn ha-icon{--mdc-icon-size:20px}',
     '.you{margin-left:8px;font-size:11px;font-weight:900;letter-spacing:1px;padding:2px 7px;border-radius:9px;background:#ffd23f;color:#3a2a00;vertical-align:middle}',
     '.adm{display:flex;gap:16px;align-items:flex-start}',
     '.side{flex:none;width:210px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0}',
@@ -490,6 +492,21 @@
 
     _setTab(id) { this._tab = id; this._render(); }
 
+    _goHome() {
+      var path = this._cfg.back_path;
+      if (!path) { return; }
+      try {
+        history.pushState(null, '', path);
+        window.dispatchEvent(new CustomEvent('location-changed', { detail: { replace: false }, bubbles: true, composed: true }));
+      } catch (e) { /* ignore */ }
+    }
+
+    _homeBtn() {
+      var self = this;
+      if (!this._cfg.back_path) { return null; }
+      return h('button', { cls: 'homebtn', type: 'button', onclick: function () { self._goHome(); } }, [ic('mdi:home'), 'Home']);
+    }
+
     _tabletTop() {
       var self = this;
       var tabs = h('div', { cls: 'tabs' });
@@ -497,12 +514,14 @@
         tabs.appendChild(h('button', { cls: 'tab' + (self._tab === t.id ? ' on' : ''), onclick: function () { self._setTab(t.id); } }, [ic(t.icon), t.label]));
       });
       this._clockEl = h('div', { cls: 'clock' }, [h('b'), h('span')]);
-      return h('div', { cls: 'top' }, [h('div', { cls: 'logo', text: this._cfg.title || 'Chore Quest' }), tabs, this._clockEl]);
+      return h('div', { cls: 'top' }, [this._homeBtn(), h('div', { cls: 'logo', text: this._cfg.title || 'Chore Quest' }), tabs, this._clockEl]);
     }
 
     _mobileTop() {
       var m = this._selected();
       var kids = [h('div', { cls: 'logo', text: this._cfg.title || 'Chore Quest' })];
+      var hb = this._homeBtn();
+      if (hb) { kids.unshift(hb); }
       if (m) { kids.push(h('div', { style: 'margin-left:auto' }, [bankEl(m.coins, 22)])); }
       return h('div', { cls: 'top' }, kids);
     }

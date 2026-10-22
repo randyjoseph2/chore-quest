@@ -57,6 +57,7 @@ The layout follows the card's width: under 720 px you get the phone layout with 
 | `mode` | `admin` | none | Show the admin sidebar layout instead of the family view. |
 | `snap` | `true`, `false` | `true` | Open on the logged-in person's racer. |
 | `title` | text | Chore Quest | Header title. |
+| `back_path` | dashboard path, for example `/tablet-4-0/0` | none | Adds a Home button that navigates there. |
 
 ### Admin dashboard
 

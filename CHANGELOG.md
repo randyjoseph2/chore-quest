@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.5.1
+- New `back_path` card option adds a Home button to the top bar, for kiosk layouts with no header.
+
 ## 2.5.0
 - Packaged for HACS. The integration now serves its own card and loads it automatically; no Lovelace resource or `/config/www` copy is needed.
 
