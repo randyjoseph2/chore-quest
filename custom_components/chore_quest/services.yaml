@@ -1,0 +1,53 @@
+add_coins:
+  name: Add coins
+  description: Give (or take) coins from a racer. Handy for automations.
+  fields:
+    member:
+      name: Member
+      description: Member id or name (e.g. parker).
+      required: true
+      example: parker
+      selector:
+        text:
+    amount:
+      name: Amount
+      description: Coins to add (negative removes).
+      required: true
+      example: 3
+      selector:
+        number:
+          min: -1000
+          max: 1000
+    reason:
+      name: Reason
+      description: Shown in the history log.
+      example: Great listening
+      selector:
+        text:
+
+complete_chore:
+  name: Complete chore
+  description: Mark today's chore done for a member (awards coins).
+  fields:
+    member:
+      name: Member
+      description: Member id or name.
+      required: true
+      example: parker
+      selector:
+        text:
+    chore:
+      name: Chore
+      description: Chore id or name.
+      required: true
+      example: Brush Teeth
+      selector:
+        text:
+    slot:
+      name: Time of day
+      description: For chores done more than once a day, which one (0 = first, 1 = second).
+      example: 1
+      selector:
+        number:
+          min: 0
+          max: 3
