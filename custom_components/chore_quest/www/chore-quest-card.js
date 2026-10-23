@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '2.8.0';
+  var CARD_VERSION = '2.8.1';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -1172,7 +1172,7 @@
       var who = names.length ? names.join(', ') : 'Nobody';
       var ar = this._area(ch.area);
       if (ar) { who = ar.name + ' - ' + who; }
-      var when = ch.freq === 'daily' ? 'every day' : (ch.freq === 'once' ? ch.date : (ch.freq === 'biweekly' ? 'every other week ' : '') + (ch.days || []).map(function (d) { return DAYS[d]; }).join(' ') + (ch.freq === 'biweekly' ? (this._weekOn(ch) ? ' (on this week)' : ' (off this week)') : ''));
+      var when = ch.freq === 'daily' ? 'every day' : (ch.freq === 'once' ? ch.date : (ch.freq === 'biweekly' ? 'every other week ' : '') + (ch.days || []).map(function (d) { return DAYS[d]; }).join(' ') + (ch.freq === 'biweekly' ? (ch.sync === 'work' ? ' (work weeks)' : (ch.sync === 'off' ? ' (off weeks)' : (this._weekOn(ch) ? ' (on this week)' : ' (off this week)'))) : ''));
       var turns = ch.rotate === 'daily' ? ' - taking turns daily' : (ch.rotate === 'weekly' ? ' - taking turns weekly' : '');
       var times = (ch.slots && ch.slots.length) ? ' - ' + ch.slots.join(' + ') : '';
       var race = (ch.claim === 'first' && (ch.assignees || []).length > 1 && ch.rotate !== 'daily' && ch.rotate !== 'weekly') ? ' - first to tap wins' : '';
@@ -1329,6 +1329,7 @@
     }
 
     _weekOn(ch) {
+      if (ch && ch.freq === 'biweekly' && (ch.sync === 'work' || ch.sync === 'off')) { return (ch.sync === 'work') === !!this._s.work_week; }
       if (!ch || ch.freq !== 'biweekly' || !ch.anchor) { return true; }
       function mon(iso) { var p = String(iso).split('-'); var d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])); var wd = (d.getUTCDay() + 6) % 7; return d.getTime() - wd * 86400000; }
       var weeks = Math.round((mon(this._s.today) - mon(ch.anchor)) / (7 * 86400000));
@@ -1381,8 +1382,8 @@
       var freq = picker([{ v: 'daily', label: 'Every day' }, { v: 'days', label: 'Certain days' }, { v: 'biweekly', label: 'Every other week' }, { v: 'once', label: 'One time' }], [c.freq], false, function (v) { showHide(v[0]); });
       var days = picker(DAYS.map(function (d, i) { return { v: i, label: d }; }), c.days || [], true);
       var dateIn = h('input', { cls: 'inp', type: 'date', value: c.date || s.today });
-      var weekPick = picker([{ v: 'this', label: 'This week' }, { v: 'next', label: 'Next week' }], [this._weekOn(ch) ? 'this' : 'next'], false);
-      weekRow.appendChild(field('Which week is ON (it repeats every other week from there)', weekPick.el));
+      var weekPick = picker([{ v: 'work', label: 'Weeks I work weekends' }, { v: 'off', label: 'Weeks I am off' }, { v: 'this', label: 'This week' }, { v: 'next', label: 'Next week' }], [(ch && ch.sync) ? ch.sync : ((ch && ch.freq === 'biweekly') ? (this._weekOn(ch) ? 'this' : 'next') : 'off')], false);
+      weekRow.appendChild(field('Which weeks is it ON? Work and off weeks follow the date set in Settings', weekPick.el));
       daysRow.appendChild(field('Which days', days.el));
       dateRow.appendChild(field('Date', dateIn));
       var areaOpts = [{ v: '', label: 'No room' }].concat((s.areas || []).map(function (a) { return { v: a.id, label: a.name }; }));
@@ -1533,6 +1534,7 @@
       var bonus = h('input', { cls: 'inp', type: 'number', value: String(st.all_done_bonus || 0), min: '0', max: '20', inputmode: 'numeric' });
       var svc = h('input', { cls: 'inp', type: 'text', value: st.notify_service || '', placeholder: 'notify.mobile_app_...' });
       var dayStart = h('input', { cls: 'inp', type: 'number', value: String(st.day_start_hour === undefined ? 2 : st.day_start_hour), min: '0', max: '6', inputmode: 'numeric' });
+      var workIn = h('input', { cls: 'inp', type: 'date', value: st.work_anchor || '' });
       var phaseIn = h('input', { cls: 'inp', type: 'text', value: st.phase_entity || '', placeholder: 'input_select.timeofday' });
       var phaseOn = picker([{ v: 'on', label: 'On - show only quests for now' }, { v: 'off', label: 'Off - show every quest' }], [st.phase_filter === false ? 'off' : 'on'], false);
       this._openModal({
@@ -1542,13 +1544,14 @@
           field('Bonus coins for clearing every quest (0 = off)', bonus),
           field('Notify when a prize is redeemed', svc),
           field('New chore day starts at (hour, 0 to 6)', dayStart),
+          field('A date in any week you work the weekend (weeks alternate from there)', workIn),
           field('Day and night quests', phaseOn.el),
           field('Time of day entity (Morning/Afternoon = day, Evening/Night = night)', phaseIn)
         ],
         actions: [{ label: 'Cancel', cls: 'alt' }, { label: 'Save', cls: 'go', fn: function () {
           var payload = {
             all_done_bonus: parseInt(bonus.value, 10) || 0, notify_service: svc.value,
-            day_start_hour: parseInt(dayStart.value, 10) || 0, phase_entity: phaseIn.value, phase_filter: (phaseOn.get()[0] || 'on') === 'on'
+            day_start_hour: parseInt(dayStart.value, 10) || 0, phase_entity: phaseIn.value, work_anchor: workIn.value, phase_filter: (phaseOn.get()[0] || 'on') === 'on'
           };
           var newPin = pin.value.replace(/\D/g, '');
           if (newPin) { payload.pin = newPin; }

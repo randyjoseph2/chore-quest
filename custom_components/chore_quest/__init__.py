@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "2.8.0"
+VERSION = "2.8.1"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -53,6 +53,7 @@ DEFAULT_SETTINGS = {
     "pin": "",
     "all_done_bonus": 0,
     "notify_service": "notify.mobile_app_randys_iphone",
+    "work_anchor": "2026-10-19",
 }
 
 
@@ -351,6 +352,16 @@ class ChoreQuest:
         label = slots[slot] if slot < len(slots) else ""
         return "%s (%s)" % (ch["name"], label) if label else ch["name"]
 
+    def is_work_week(self, day: dt.date) -> bool:
+        """True in the weeks that contain one of the work weekends (alternating, from the settings anchor)."""
+        try:
+            anchor = dt.date.fromisoformat(self.data["settings"].get("work_anchor", ""))
+        except ValueError:
+            return True
+        anchor -= dt.timedelta(days=anchor.weekday())
+        this = day - dt.timedelta(days=day.weekday())
+        return ((this - anchor).days // 7) % 2 == 0
+
     def is_active(self, ch: dict, day: dt.date) -> bool:
         freq = ch.get("freq", "daily")
         if freq == "daily":
@@ -360,6 +371,8 @@ class ChoreQuest:
         if freq == "biweekly":
             if day.weekday() not in ch.get("days", []):
                 return False
+            if ch.get("sync") in ("work", "off"):
+                return self.is_work_week(day) == (ch["sync"] == "work")
             try:
                 anchor = dt.date.fromisoformat(ch.get("anchor", ""))
             except ValueError:
@@ -496,6 +509,7 @@ class ChoreQuest:
             "version": VERSION,
             "today": today.isoformat(),
             "phase": cur,
+            "work_week": self.is_work_week(today),
             "week_dates": dates,
             "members": members,
             "chores": self.data["chores"],
@@ -671,7 +685,8 @@ class ChoreQuest:
         if freq in ("days", "biweekly") and not days:
             raise ValueError("Pick at least one day")
         anchor = ""
-        if freq == "biweekly":
+        sync = p.get("week_on") if p.get("week_on") in ("work", "off") and freq == "biweekly" else ""
+        if freq == "biweekly" and not sync:
             today = self.today()
             monday = today - dt.timedelta(days=today.weekday())
             if p.get("week_on") == "next":
@@ -695,6 +710,7 @@ class ChoreQuest:
                 "days": days,
                 "date": date if freq == "once" else "",
                 "anchor": anchor,
+                "sync": sync,
                 "rotate": p.get("rotate") if p.get("rotate") in ("none", "daily", "weekly") else "none",
             }
         )
@@ -827,6 +843,12 @@ class ChoreQuest:
             self.track_rollover()
         if "phase_filter" in p:
             s["phase_filter"] = bool(p.get("phase_filter"))
+        if "work_anchor" in p:
+            try:
+                d = dt.date.fromisoformat(str(p.get("work_anchor") or ""))
+                s["work_anchor"] = (d - dt.timedelta(days=d.weekday())).isoformat()
+            except ValueError as err:
+                raise ValueError("Pick a date in a week you work weekends") from err
         if "notify_service" in p:
             s["notify_service"] = _clean_str(p.get("notify_service"), 80)
         return {}

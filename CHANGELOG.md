@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.8.1
+- Work and off weeks: Settings has one date that marks a week you work the weekend. Every other week quests can now be set to **Weeks I work weekends** or **Weeks I am off**, so the whole set flips together with one setting.
+
 ## 2.8.0
 - New **Every other week** frequency: pick the days and which week is ON (this week or next) and the quest repeats on alternating weeks. Built for alternating work and off weekends.
 - Admin Rooms menu: each room now lists its quests and has an **Add quest** button that opens the quest form with that room already chosen.
