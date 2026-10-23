@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.11.0
+- Cup tab: a History list under the Coin bank showing who did what, when, and how many coins it earned, grouped into Today and Yesterday, with a quiet note about when the new day starts.
+- History entries are now dated by chore day, so a 1 AM quest counts for the day before.
+
 ## 2.10.0
 - New **Every other day** frequency with a "last time it was done" date. The quest shows up two days after that date and every second day from there.
 

@@ -1,6 +1,7 @@
-# Chore Quest 2.10.0
+# Chore Quest 2.11.0
 
 ## What's new
+- **History on the Cup tab.** Under the Coin bank: who did what, at what time, and the coins they earned, grouped by Today and Yesterday, with a subtle note on when the new day starts.
 - **Every other day quests.** Set the last time it was done and it comes back every second day. Built for things like bath nights.
 - **Drag and drop quests** in the admin Quests menu. Use the handle on the left to reorder, or drop a quest on another room's header to move it there.
 - **Add quest on every room header** in the admin Quests menu, with the room pre-selected, so there is no scrolling to the bottom. The Rooms menu is back to plain rooms.

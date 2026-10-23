@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '2.10.0';
+  var CARD_VERSION = '2.11.0';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -110,6 +110,9 @@
     '.step .blk{width:100%;border-radius:14px 14px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:8px;font-weight:900;font-size:34px;background:linear-gradient(180deg,var(--mc),rgba(0,0,0,.45));box-shadow:inset 0 4px 0 rgba(255,255,255,.25)}',
     '.step .nm{font-size:16px}.step .bank{font-size:20px}',
     '.step ha-icon.crown{--mdc-icon-size:34px;color:#ffd23f}',
+    '.hnote{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:rgba(230,233,255,.55);margin:-4px 0 8px}',
+    '.hnote ha-icon{--mdc-icon-size:14px}',
+    '.hday{margin:12px 0 6px;font-size:12px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:#ffd23f}',
     '.rank{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:14px;background:rgba(255,255,255,.06);margin-bottom:8px}',
     '.rank .pos{font-weight:900;font-size:22px;width:28px;color:#ffd23f}',
     '.rank .bar{flex:1;height:14px;border-radius:8px;background:rgba(0,0,0,.4);overflow:hidden}',
@@ -1026,7 +1029,40 @@
         bank.appendChild(h('div', { cls: 'pick', style: '--mc:' + m.color }, [avatar(m, 38), m.name, h('small', null, [coin(16), String(m.coins)])]));
       });
       wrap.appendChild(bank);
+      wrap.appendChild(this._cupHistory());
       return wrap;
+    }
+
+    _cupHistory() {
+      var self = this;
+      var s = this._s;
+      var hr = (s.settings && s.settings.day_start_hour !== undefined) ? s.settings.day_start_hour : 2;
+      var box = h('div');
+      box.appendChild(h('div', { cls: 'h2', text: 'History' }));
+      box.appendChild(h('div', { cls: 'hnote' }, [ic('mdi:clock-outline', 14), 'A new day starts at ' + pad(hr) + ':00']));
+      var yest = new Date(s.today + 'T00:00:00');
+      yest.setDate(yest.getDate() - 1);
+      var yIso = yest.getFullYear() + '-' + pad(yest.getMonth() + 1) + '-' + pad(yest.getDate());
+      var list = (s.recent || []).slice(0, 30);
+      if (!list.length) {
+        box.appendChild(h('div', { cls: 'sub', text: 'Nothing yet - finish a quest to start the story' }));
+        return box;
+      }
+      var lastDay = null;
+      list.forEach(function (e) {
+        if (e.date !== lastDay) {
+          lastDay = e.date;
+          box.appendChild(h('div', { cls: 'hday', text: e.date === s.today ? 'Today' : (e.date === yIso ? 'Yesterday' : e.date) }));
+        }
+        var m = self._member(e.member);
+        var up = e.delta >= 0;
+        box.appendChild(h('div', { cls: 'rank', style: '--mc:' + (m ? m.color : '#888') }, [
+          m ? avatar(m, 34) : h('div'),
+          h('div', { style: 'flex:1;min-width:0' }, [h('div', { style: 'font-weight:900', text: e.label }), h('small', { style: 'opacity:.75;font-weight:800', text: (m ? m.name : '?') + ' - ' + timeLabel(e.ts) })]),
+          h('b', { style: 'display:flex;align-items:center;gap:4px;color:' + (up ? '#3ddc84' : '#ff6b78'), text: '' }, [coin(18), (up ? '+' : '') + e.delta])
+        ]));
+      });
+      return box;
     }
 
     /* ---------------------------------------------------------- parent */

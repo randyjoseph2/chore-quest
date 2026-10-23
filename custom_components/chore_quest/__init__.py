@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "2.10.0"
+VERSION = "2.11.0"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -453,7 +453,7 @@ class ChoreQuest:
         self.data["ledger"].append(
             {
                 "ts": now.isoformat(),
-                "date": now.date().isoformat(),
+                "date": self.today().isoformat(),
                 "member": mid,
                 "delta": delta,
                 "kind": kind,
