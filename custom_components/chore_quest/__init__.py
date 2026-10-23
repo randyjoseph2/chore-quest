@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "2.11.0"
+VERSION = "2.11.1"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -286,6 +286,14 @@ class ChoreQuest:
         start = _clean_int((self.data.get("settings") or {}).get("day_start_hour"), 0, 6, 0)
         return (dt_util.now() - dt.timedelta(hours=start)).date()
 
+    def entry_day(self, e: dict) -> str:
+        """The chore day an entry belongs to, worked out from its timestamp (so old entries and a changed rollover hour stay correct)."""
+        start = _clean_int((self.data.get("settings") or {}).get("day_start_hour"), 0, 6, 0)
+        try:
+            return (dt.datetime.fromisoformat(e["ts"]) - dt.timedelta(hours=start)).date().isoformat()
+        except (KeyError, ValueError, TypeError):
+            return e.get("date", "")
+
     def track_rollover(self) -> None:
         """Start the new chore day at day_start_hour."""
         if self._roll_unsub:
@@ -473,7 +481,7 @@ class ChoreQuest:
             if e["kind"] not in EARN_KINDS or e["member"] not in cur:
                 continue
             try:
-                day = dt.date.fromisoformat(e["date"])
+                day = dt.date.fromisoformat(self.entry_day(e))
             except ValueError:
                 continue
             if day >= week_start:
@@ -525,7 +533,7 @@ class ChoreQuest:
             "settings": settings,
             "week": week,
             "standings": self._standings(),
-            "recent": list(reversed(self.data["ledger"][-60:])),
+            "recent": [dict(e, date=self.entry_day(e)) for e in reversed(self.data["ledger"][-60:])],
         }
 
     def publish_states(self) -> None:

@@ -1,6 +1,7 @@
-# Chore Quest 2.11.0
+# Chore Quest 2.11.1
 
 ## What's new
+- **History day fix.** Entries made between midnight and the new-day hour now stay under Today. Old entries are corrected too.
 - **History on the Cup tab.** Under the Coin bank: who did what, at what time, and the coins they earned, grouped by Today and Yesterday, with a subtle note on when the new day starts.
 - **Every other day quests.** Set the last time it was done and it comes back every second day. Built for things like bath nights.
 - **Drag and drop quests** in the admin Quests menu. Use the handle on the left to reorder, or drop a quest on another room's header to move it there.

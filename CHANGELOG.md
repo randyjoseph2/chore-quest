@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.11.1
+- Fixed History day grouping: every entry, old or new, is now placed in its chore day from its timestamp, so after midnight and before 2 AM entries stay under Today instead of splitting into a second group. The weekly standings use the same rule.
+
 ## 2.11.0
 - Cup tab: a History list under the Coin bank showing who did what, when, and how many coins it earned, grouped into Today and Yesterday, with a quiet note about when the new day starts.
 - History entries are now dated by chore day, so a 1 AM quest counts for the day before.
