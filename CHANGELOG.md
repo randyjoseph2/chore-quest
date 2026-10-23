@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.8.2
+- Alternating weeks are now called **Week A** (off weekend) and **Week B** (work weekend) in the quest form, quest list and Settings. Settings shows which week it is now.
+
 ## 2.8.1
 - Work and off weeks: Settings has one date that marks a week you work the weekend. Every other week quests can now be set to **Weeks I work weekends** or **Weeks I am off**, so the whole set flips together with one setting.
 
