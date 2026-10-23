@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.8.0
+- New **Every other week** frequency: pick the days and which week is ON (this week or next) and the quest repeats on alternating weeks. Built for alternating work and off weekends.
+- Admin Rooms menu: each room now lists its quests and has an **Add quest** button that opens the quest form with that room already chosen.
+
 ## 2.7.4
 - GitHub releases are now published automatically for each new version, so HACS shows proper version numbers and these notes.
 

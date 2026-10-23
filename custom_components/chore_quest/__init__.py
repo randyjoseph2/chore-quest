@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "2.7.4"
+VERSION = "2.8.0"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -357,6 +357,16 @@ class ChoreQuest:
             return True
         if freq == "days":
             return day.weekday() in ch.get("days", [])
+        if freq == "biweekly":
+            if day.weekday() not in ch.get("days", []):
+                return False
+            try:
+                anchor = dt.date.fromisoformat(ch.get("anchor", ""))
+            except ValueError:
+                return True
+            anchor -= dt.timedelta(days=anchor.weekday())
+            this = day - dt.timedelta(days=day.weekday())
+            return ((this - anchor).days // 7) % 2 == 0
         if freq == "once":
             return ch.get("date") == day.isoformat()
         return False
@@ -655,11 +665,18 @@ class ChoreQuest:
         new = ch is None
         if new:
             ch = {"id": _uid()}
-        freq = p.get("freq") if p.get("freq") in ("daily", "days", "once") else "daily"
+        freq = p.get("freq") if p.get("freq") in ("daily", "days", "biweekly", "once") else "daily"
         days = sorted({_clean_int(d, 0, 6) for d in (p.get("days") or [])})
         date = _clean_str(p.get("date"), 10)
-        if freq == "days" and not days:
+        if freq in ("days", "biweekly") and not days:
             raise ValueError("Pick at least one day")
+        anchor = ""
+        if freq == "biweekly":
+            today = self.today()
+            monday = today - dt.timedelta(days=today.weekday())
+            if p.get("week_on") == "next":
+                monday += dt.timedelta(days=7)
+            anchor = monday.isoformat()
         if freq == "once":
             try:
                 dt.date.fromisoformat(date)
@@ -677,6 +694,7 @@ class ChoreQuest:
                 "freq": freq,
                 "days": days,
                 "date": date if freq == "once" else "",
+                "anchor": anchor,
                 "rotate": p.get("rotate") if p.get("rotate") in ("none", "daily", "weekly") else "none",
             }
         )
