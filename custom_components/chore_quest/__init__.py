@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "2.9.0"
+VERSION = "2.10.0"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -369,6 +369,12 @@ class ChoreQuest:
             return True
         if freq == "days":
             return day.weekday() in ch.get("days", [])
+        if freq == "everyother":
+            try:
+                last = dt.date.fromisoformat(ch.get("last", ""))
+            except ValueError:
+                return False
+            return day != last and (day - last).days % 2 == 0
         if freq == "biweekly":
             if day.weekday() not in ch.get("days", []):
                 return False
@@ -680,11 +686,18 @@ class ChoreQuest:
         new = ch is None
         if new:
             ch = {"id": _uid()}
-        freq = p.get("freq") if p.get("freq") in ("daily", "days", "biweekly", "once") else "daily"
+        freq = p.get("freq") if p.get("freq") in ("daily", "days", "biweekly", "everyother", "once") else "daily"
         days = sorted({_clean_int(d, 0, 6) for d in (p.get("days") or [])})
         date = _clean_str(p.get("date"), 10)
         if freq in ("days", "biweekly") and not days:
             raise ValueError("Pick at least one day")
+        last = ""
+        if freq == "everyother":
+            last = _clean_str(p.get("last"), 10)
+            try:
+                dt.date.fromisoformat(last)
+            except ValueError as err:
+                raise ValueError("Pick the date it was last done") from err
         anchor = ""
         sync = p.get("week_on") if p.get("week_on") in ("work", "off") and freq == "biweekly" else ""
         if freq == "biweekly" and not sync:
@@ -711,6 +724,7 @@ class ChoreQuest:
                 "days": days,
                 "date": date if freq == "once" else "",
                 "anchor": anchor,
+                "last": last,
                 "sync": sync,
                 "rotate": p.get("rotate") if p.get("rotate") in ("none", "daily", "weekly") else "none",
             }

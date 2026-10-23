@@ -1,6 +1,7 @@
-# Chore Quest 2.9.0
+# Chore Quest 2.10.0
 
 ## What's new
+- **Every other day quests.** Set the last time it was done and it comes back every second day. Built for things like bath nights.
 - **Drag and drop quests** in the admin Quests menu. Use the handle on the left to reorder, or drop a quest on another room's header to move it there.
 - **Add quest on every room header** in the admin Quests menu, with the room pre-selected, so there is no scrolling to the bottom. The Rooms menu is back to plain rooms.
 - **Week A and Week B.** Alternating weeks use your own names: Week A is an off weekend, Week B is a work weekend. Settings shows which one this week is.

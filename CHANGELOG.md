@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.10.0
+- New **Every other day** frequency with a "last time it was done" date. The quest shows up two days after that date and every second day from there.
+
 ## 2.9.0
 - Drag to reorganize quests in the admin Quests menu. Grab the handle on the left of a quest and drop it above or below another quest, or onto a room header to move it into that room. The order carries through to the family board.
 

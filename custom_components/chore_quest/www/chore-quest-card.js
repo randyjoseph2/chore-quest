@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '2.9.0';
+  var CARD_VERSION = '2.10.0';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -1269,7 +1269,7 @@
       var who = names.length ? names.join(', ') : 'Nobody';
       var ar = this._area(ch.area);
       if (ar) { who = ar.name + ' - ' + who; }
-      var when = ch.freq === 'daily' ? 'every day' : (ch.freq === 'once' ? ch.date : (ch.freq === 'biweekly' ? 'every other week ' : '') + (ch.days || []).map(function (d) { return DAYS[d]; }).join(' ') + (ch.freq === 'biweekly' ? (ch.sync === 'work' ? ' (Week B)' : (ch.sync === 'off' ? ' (Week A)' : (this._weekOn(ch) ? ' (on this week)' : ' (off this week)'))) : ''));
+      var when = ch.freq === 'everyother' ? this._everyOtherText(ch) : ch.freq === 'daily' ? 'every day' : (ch.freq === 'once' ? ch.date : (ch.freq === 'biweekly' ? 'every other week ' : '') + (ch.days || []).map(function (d) { return DAYS[d]; }).join(' ') + (ch.freq === 'biweekly' ? (ch.sync === 'work' ? ' (Week B)' : (ch.sync === 'off' ? ' (Week A)' : (this._weekOn(ch) ? ' (on this week)' : ' (off this week)'))) : ''));
       var turns = ch.rotate === 'daily' ? ' - taking turns daily' : (ch.rotate === 'weekly' ? ' - taking turns weekly' : '');
       var times = (ch.slots && ch.slots.length) ? ' - ' + ch.slots.join(' + ') : '';
       var race = (ch.claim === 'first' && (ch.assignees || []).length > 1 && ch.rotate !== 'daily' && ch.rotate !== 'weekly') ? ' - first to tap wins' : '';
@@ -1425,6 +1425,22 @@
       return box;
     }
 
+    _everyOtherText(ch) {
+      function ms(iso) { var p = String(iso || '').split('-'); return Date.UTC(+p[0], +p[1] - 1, +p[2]); }
+      var t = ms(this._s.today), l = ms(ch.last);
+      if (isNaN(l)) { return 'every other day'; }
+      for (var i = 0; i < 4; i++) {
+        var d = t + i * 86400000;
+        var diff = Math.round((d - l) / 86400000);
+        if (diff !== 0 && Math.abs(diff) % 2 === 0) {
+          if (i === 0) { return 'every other day (today)'; }
+          var dd = new Date(d);
+          return 'every other day (next ' + (dd.getUTCMonth() + 1) + '/' + dd.getUTCDate() + ')';
+        }
+      }
+      return 'every other day';
+    }
+
     _weekOn(ch) {
       if (ch && ch.freq === 'biweekly' && (ch.sync === 'work' || ch.sync === 'off')) { return (ch.sync === 'work') === !!this._s.work_week; }
       if (!ch || ch.freq !== 'biweekly' || !ch.anchor) { return true; }
@@ -1476,12 +1492,15 @@
       var daysRow = h('div');
       var dateRow = h('div');
       var weekRow = h('div');
-      var freq = picker([{ v: 'daily', label: 'Every day' }, { v: 'days', label: 'Certain days' }, { v: 'biweekly', label: 'Every other week' }, { v: 'once', label: 'One time' }], [c.freq], false, function (v) { showHide(v[0]); });
+      var lastRow = h('div');
+      var freq = picker([{ v: 'daily', label: 'Every day' }, { v: 'days', label: 'Certain days' }, { v: 'everyother', label: 'Every other day' }, { v: 'biweekly', label: 'Every other week' }, { v: 'once', label: 'One time' }], [c.freq], false, function (v) { showHide(v[0]); });
       var days = picker(DAYS.map(function (d, i) { return { v: i, label: d }; }), c.days || [], true);
       var dateIn = h('input', { cls: 'inp', type: 'date', value: c.date || s.today });
       var weekPick = picker([{ v: 'off', label: 'Week A (off weekend)' }, { v: 'work', label: 'Week B (work weekend)' }, { v: 'this', label: 'This week' }, { v: 'next', label: 'Next week' }], [(ch && ch.sync) ? ch.sync : ((ch && ch.freq === 'biweekly') ? (this._weekOn(ch) ? 'this' : 'next') : 'off')], false);
       weekRow.appendChild(field('Which weeks is it ON? Week A and Week B follow the date set in Settings', weekPick.el));
       daysRow.appendChild(field('Which days', days.el));
+      var lastIn = h('input', { cls: 'inp', type: 'date', value: c.last || s.today });
+      lastRow.appendChild(field('Last time it was done (it comes back every other day after this)', lastIn));
       dateRow.appendChild(field('Date', dateIn));
       var areaOpts = [{ v: '', label: 'No room' }].concat((s.areas || []).map(function (a) { return { v: a.id, label: a.name }; }));
       var areaPick = picker(areaOpts, [c.area || presetArea || ''], false);
@@ -1490,6 +1509,7 @@
         daysRow.style.display = (f === 'days' || f === 'biweekly') ? '' : 'none';
         weekRow.style.display = f === 'biweekly' ? '' : 'none';
         dateRow.style.display = f === 'once' ? '' : 'none';
+        lastRow.style.display = f === 'everyother' ? '' : 'none';
       }
       showHide(c.freq);
       var actions = [{ label: 'Cancel', cls: 'alt' }];
@@ -1502,7 +1522,7 @@
       actions.push({ label: 'Save', cls: 'go', fn: function () {
         return self._admin('save_chore', {
           id: ch ? ch.id : null, name: name.value, icon: iconIn.value, coins: coins,
-          assignees: who.get(), freq: freq.get()[0] || 'daily', days: days.get(), week_on: weekPick.get()[0] || 'this', date: dateIn.value, rotate: rotate.get()[0] || 'none',
+          assignees: who.get(), freq: freq.get()[0] || 'daily', days: days.get(), week_on: weekPick.get()[0] || 'this', date: dateIn.value, last: lastIn.value, rotate: rotate.get()[0] || 'none',
           slots: slotsIn.value.split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x; }),
           claim: claim.get()[0] || 'each', area: areaPick.get()[0] || ''
         });
@@ -1511,7 +1531,7 @@
         title: ch ? 'Edit quest' : 'New quest',
         body: [
           field('Name', name), field('Room', areaPick.el), field('Icon', this._iconGrid(CHORE_ICONS, iconIn)), field('Or type any mdi icon', iconIn),
-          field('Coins earned', stepper), field('Who does it', who.el), field('How often', freq.el), daysRow, weekRow, dateRow,
+          field('Coins earned', stepper), field('Who does it', who.el), field('How often', freq.el), daysRow, weekRow, dateRow, lastRow,
           field('Times per day (each one earns coins). Morning and Afternoon show during the day, Evening and Night show at night', slotsBox),
           field('Shared quests', rotate.el),
           field('Who gets the coins', claim.el)
