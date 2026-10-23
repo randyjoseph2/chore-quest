@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '2.8.2';
+  var CARD_VERSION = '2.8.3';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -1070,27 +1070,29 @@
       var self = this;
       var s = this._s;
       var chores = h('div', { cls: 'sec' }, [h('div', { cls: 'h2', text: 'Quests' })]);
-      var order = {};
-      (s.areas || []).forEach(function (a, i) { order[a.id] = i; });
-      var lastG = null;
-      s.chores.slice().sort(function (a, b) {
-        var oa = order[a.area] === undefined ? 999 : order[a.area];
-        var ob = order[b.area] === undefined ? 999 : order[b.area];
-        return oa - ob;
-      }).forEach(function (ch) {
-        var rowEl = h('div', { cls: 'row' }, [
+      function row(ch) {
+        return h('div', { cls: 'row' }, [
           h('div', { cls: 'ci', style: '--mc:#3b4fd8' }, [ic(ch.icon)]),
           h('div', { cls: 'rt' }, [h('b', { text: ch.name }), h('small', { text: self._describe(ch) })]),
           bankEl(ch.coins, 18),
           h('button', { cls: 'btn sm', onclick: function () { self._choreForm(ch); } }, [ic('mdi:pencil')])
         ]);
-        if (grouped) {
-          var ar = self._area(ch.area);
-          var gname = ar ? ar.name : 'No room';
-          if (gname !== lastG) { chores.appendChild(h('div', { cls: 'grp' }, [ic(ar ? ar.icon : 'mdi:dots-horizontal', 18), gname])); lastG = gname; }
-        }
-        chores.appendChild(rowEl);
-      });
+      }
+      if (grouped) {
+        var groups = (s.areas || []).map(function (a) { return { id: a.id, name: a.name, icon: a.icon }; });
+        groups.push({ id: '', name: 'No room', icon: 'mdi:dots-horizontal' });
+        groups.forEach(function (g) {
+          var list = s.chores.filter(function (c) { return (c.area || '') === g.id; });
+          if (!list.length && !g.id) { return; }
+          chores.appendChild(h('div', { cls: 'grp', style: 'display:flex;align-items:center;gap:6px' }, [
+            ic(g.icon, 18), h('span', { text: g.name, style: 'flex:1' }),
+            h('button', { cls: 'cp on', type: 'button', style: 'padding:4px 10px;font-size:12px;text-transform:none;letter-spacing:0', onclick: function () { self._choreForm(null, g.id); } }, [ic('mdi:plus', 14), 'Add quest'])
+          ]));
+          list.forEach(function (ch) { chores.appendChild(row(ch)); });
+        });
+      } else {
+        s.chores.forEach(function (ch) { chores.appendChild(row(ch)); });
+      }
       chores.appendChild(h('button', { cls: 'btn go', style: 'width:100%;margin-top:6px', onclick: function () { self._choreForm(null); } }, [ic('mdi:plus'), ' New quest']));
       return chores;
     }
@@ -1122,13 +1124,6 @@
           h('div', { cls: 'rt' }, [h('b', { text: a.name }), h('small', { text: (a.group || a.name) + ' - ' + n + (n === 1 ? ' quest' : ' quests') })]),
           h('button', { cls: 'btn sm', onclick: function () { self._areaForm(a); } }, [ic('mdi:pencil')])
         ]));
-        var mine = s.chores.filter(function (c) { return c.area === a.id; });
-        var under = h('div', { cls: 'chips', style: 'margin:2px 0 10px 8px' });
-        mine.forEach(function (c) {
-          under.appendChild(h('button', { cls: 'cp', type: 'button', onclick: function () { self._choreForm(c); } }, [ic(c.icon, 16), c.name]));
-        });
-        under.appendChild(h('button', { cls: 'cp on', type: 'button', onclick: function () { self._choreForm(null, a.id); } }, [ic('mdi:plus', 16), 'Add quest']));
-        rooms.appendChild(under);
       });
       rooms.appendChild(h('button', { cls: 'btn go', style: 'width:100%;margin-top:6px', onclick: function () { self._areaForm(null); } }, [ic('mdi:plus'), ' New room']));
       return rooms;

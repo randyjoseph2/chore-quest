@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.8.3
+- Admin Quests menu: each room header now has a small **Add quest** button that opens the quest form with that room selected. Rooms with no quests yet are listed too. The Rooms menu is back to plain rooms.
+
 ## 2.8.2
 - Alternating weeks are now called **Week A** (off weekend) and **Week B** (work weekend) in the quest form, quest list and Settings. Settings shows which week it is now.
 
