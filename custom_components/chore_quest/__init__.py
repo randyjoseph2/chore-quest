@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "2.8.3"
+VERSION = "2.9.0"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -33,6 +33,7 @@ ADMIN_ACTIONS = {
     "verify_pin",
     "save_chore",
     "delete_chore",
+    "reorder_chores",
     "save_member",
     "delete_member",
     "save_prize",
@@ -717,6 +718,26 @@ class ChoreQuest:
         if new:
             self.data["chores"].append(ch)
         return {"id": ch["id"]}
+
+    def _a_reorder_chores(self, p: dict) -> dict:
+        """Move one quest (optionally into another room) to sit just before another quest."""
+        ch = self.chore(p.get("id"))
+        if not ch:
+            raise ValueError("Unknown quest")
+        chores = self.data["chores"]
+        before = self.chore(p.get("before")) if p.get("before") else None
+        area = p.get("area") if self.area(p.get("area")) else ""
+        chores.remove(ch)
+        ch["area"] = area
+        if before is not None and before is not ch and before in chores:
+            chores.insert(chores.index(before), ch)
+        else:
+            last = max((i for i, c in enumerate(chores) if (c.get("area") or "") == area), default=None)
+            if last is None:
+                chores.append(ch)
+            else:
+                chores.insert(last + 1, ch)
+        return {}
 
     def _a_delete_chore(self, p: dict) -> dict:
         self.data["chores"] = [c for c in self.data["chores"] if c["id"] != p.get("id")]

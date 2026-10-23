@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.9.0
+- Drag to reorganize quests in the admin Quests menu. Grab the handle on the left of a quest and drop it above or below another quest, or onto a room header to move it into that room. The order carries through to the family board.
+
 ## 2.8.3
 - Admin Quests menu: each room header now has a small **Add quest** button that opens the quest form with that room selected. Rooms with no quests yet are listed too. The Rooms menu is back to plain rooms.
 

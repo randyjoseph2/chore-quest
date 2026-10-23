@@ -1,6 +1,7 @@
-# Chore Quest 2.8.3
+# Chore Quest 2.9.0
 
 ## What's new
+- **Drag and drop quests** in the admin Quests menu. Use the handle on the left to reorder, or drop a quest on another room's header to move it there.
 - **Add quest on every room header** in the admin Quests menu, with the room pre-selected, so there is no scrolling to the bottom. The Rooms menu is back to plain rooms.
 - **Week A and Week B.** Alternating weeks use your own names: Week A is an off weekend, Week B is a work weekend. Settings shows which one this week is.
 - **Work weeks and off weeks.** One date in Settings marks a week you work the weekend. Quests can follow your work weeks or your off weeks, so the whole set stays in step with your alternating schedule.

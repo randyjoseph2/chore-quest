@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '2.8.3';
+  var CARD_VERSION = '2.9.0';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -119,6 +119,9 @@
     '.champ ha-icon{--mdc-icon-size:32px;color:#ffd23f}',
     '.sec{background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.1);border-radius:18px;padding:12px;margin-bottom:14px}',
     '.sec .h2{margin-top:0}',
+    '.drag{touch-action:none;cursor:grab;color:rgba(255,255,255,.55);display:flex;align-items:center;padding:4px 2px;user-select:none;-webkit-user-select:none}',
+    '.row.dragging{opacity:.85;position:relative;z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.5);outline:2px solid #ffd23f}',
+    '.row.dropbefore{box-shadow:0 -4px 0 #ffd23f}.row.dropafter{box-shadow:0 4px 0 #ffd23f}.grp.drophdr{outline:2px dashed #ffd23f;border-radius:8px}',
     '.row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:12px;background:rgba(255,255,255,.06);margin-bottom:6px}',
     '.row .ci{width:40px;height:40px;border-radius:12px}.row .ci ha-icon{--mdc-icon-size:22px}',
     '.row .rt{flex:1;min-width:0}.row .rt b{display:block}',
@@ -1071,12 +1074,18 @@
       var s = this._s;
       var chores = h('div', { cls: 'sec' }, [h('div', { cls: 'h2', text: 'Quests' })]);
       function row(ch) {
-        return h('div', { cls: 'row' }, [
+        var handle = h('div', { cls: 'drag' }, [ic('mdi:drag', 22)]);
+        var el = h('div', { cls: 'row' }, [
+          handle,
           h('div', { cls: 'ci', style: '--mc:#3b4fd8' }, [ic(ch.icon)]),
           h('div', { cls: 'rt' }, [h('b', { text: ch.name }), h('small', { text: self._describe(ch) })]),
           bankEl(ch.coins, 18),
           h('button', { cls: 'btn sm', onclick: function () { self._choreForm(ch); } }, [ic('mdi:pencil')])
         ]);
+        el.setAttribute('data-cid', ch.id);
+        el.setAttribute('data-gid', ch.area || '');
+        self._dragHandle(handle, el, ch);
+        return el;
       }
       if (grouped) {
         var groups = (s.areas || []).map(function (a) { return { id: a.id, name: a.name, icon: a.icon }; });
@@ -1084,10 +1093,12 @@
         groups.forEach(function (g) {
           var list = s.chores.filter(function (c) { return (c.area || '') === g.id; });
           if (!list.length && !g.id) { return; }
-          chores.appendChild(h('div', { cls: 'grp', style: 'display:flex;align-items:center;gap:6px' }, [
+          var hdr = h('div', { cls: 'grp', style: 'display:flex;align-items:center;gap:6px' }, [
             ic(g.icon, 18), h('span', { text: g.name, style: 'flex:1' }),
             h('button', { cls: 'cp on', type: 'button', style: 'padding:4px 10px;font-size:12px;text-transform:none;letter-spacing:0', onclick: function () { self._choreForm(null, g.id); } }, [ic('mdi:plus', 14), 'Add quest'])
-          ]));
+          ]);
+          hdr.setAttribute('data-hid', g.id);
+          chores.appendChild(hdr);
           list.forEach(function (ch) { chores.appendChild(row(ch)); });
         });
       } else {
@@ -1095,6 +1106,97 @@
       }
       chores.appendChild(h('button', { cls: 'btn go', style: 'width:100%;margin-top:6px', onclick: function () { self._choreForm(null); } }, [ic('mdi:plus'), ' New quest']));
       return chores;
+    }
+
+    _scrollParent() {
+      var n = this;
+      while (n) {
+        var el = n.nodeType === 1 ? n : null;
+        if (el && el.scrollHeight > el.clientHeight + 4) {
+          var oy = window.getComputedStyle(el).overflowY;
+          if (oy === 'auto' || oy === 'scroll') { return el; }
+        }
+        n = n.parentNode || n.host || null;
+      }
+      return document.scrollingElement || document.documentElement;
+    }
+
+    _dragHandle(handle, rowEl, ch) {
+      var self = this;
+      var st = null;
+      function clear() {
+        var sr = self.shadowRoot;
+        Array.prototype.forEach.call(sr.querySelectorAll('.dropbefore,.dropafter,.drophdr'), function (e) {
+          e.classList.remove('dropbefore'); e.classList.remove('dropafter'); e.classList.remove('drophdr');
+        });
+      }
+      function rowsIn(gid) {
+        return Array.prototype.filter.call(self.shadowRoot.querySelectorAll('[data-cid]'), function (e) { return e.getAttribute('data-gid') === gid && e !== rowEl; });
+      }
+      function target(x, y) {
+        var stack = self.shadowRoot.elementsFromPoint(x, y);
+        var el = null;
+        for (var k = 0; k < stack.length; k++) {
+          if (stack[k] !== rowEl && !rowEl.contains(stack[k])) { el = stack[k]; break; }
+        }
+        while (el && el !== self.shadowRoot) {
+          if (el.getAttribute && (el.getAttribute('data-cid') || el.getAttribute('data-hid') !== null)) { break; }
+          el = el.parentNode;
+        }
+        if (!el || el === self.shadowRoot || !el.getAttribute) { return null; }
+        if (el.getAttribute('data-cid')) {
+          if (el === rowEl) { return null; }
+          var r = el.getBoundingClientRect();
+          var gid = el.getAttribute('data-gid') || '';
+          var after = y > r.top + r.height / 2;
+          var before = '';
+          if (!after) { before = el.getAttribute('data-cid'); } else {
+            var sibs = rowsIn(gid);
+            var at = sibs.indexOf(el);
+            before = (at >= 0 && sibs[at + 1]) ? sibs[at + 1].getAttribute('data-cid') : '';
+          }
+          return { el: el, cls: after ? 'dropafter' : 'dropbefore', area: gid, before: before };
+        }
+        var hid = el.getAttribute('data-hid') || '';
+        var first = rowsIn(hid)[0];
+        return { el: el, cls: 'drophdr', area: hid, before: first ? first.getAttribute('data-cid') : '' };
+      }
+      handle.addEventListener('pointerdown', function (ev) {
+        if (ev.button !== undefined && ev.button > 0) { return; }
+        ev.preventDefault();
+        var sc = self._scrollParent();
+        st = { y: ev.clientY, top: sc.scrollTop, sc: sc, drop: null, timer: null, lastY: ev.clientY, lastX: ev.clientX };
+        try { handle.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+        rowEl.classList.add('dragging');
+        st.timer = setInterval(function () {
+          var vh = window.innerHeight || 800;
+          var step = st.lastY < 90 ? -14 : (st.lastY > vh - 90 ? 14 : 0);
+          if (step) { st.sc.scrollTop += step; move(st.lastX, st.lastY); }
+        }, 30);
+      });
+      function move(x, y) {
+        if (!st) { return; }
+        st.lastX = x; st.lastY = y;
+        rowEl.style.transform = 'translateY(' + (y - st.y + (st.sc.scrollTop - st.top)) + 'px)';
+        clear();
+        st.drop = target(x, y);
+        if (st.drop) { st.drop.el.classList.add(st.drop.cls); }
+      }
+      handle.addEventListener('pointermove', function (ev) { if (st) { ev.preventDefault(); move(ev.clientX, ev.clientY); } });
+      function finish(commit) {
+        if (!st) { return; }
+        clearInterval(st.timer);
+        var d = st.drop;
+        st = null;
+        rowEl.classList.remove('dragging');
+        rowEl.style.transform = '';
+        clear();
+        if (commit && d) {
+          self._admin('reorder_chores', { id: ch.id, area: d.area, before: d.before }).catch(function (e) { self._err(e); });
+        }
+      }
+      handle.addEventListener('pointerup', function () { finish(true); });
+      handle.addEventListener('pointercancel', function () { finish(false); });
     }
 
     _secPrizes() {
