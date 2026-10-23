@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.11.2
+- Cup tab history now shows only the current chore day and starts fresh at the new-day hour.
+
 ## 2.11.1
 - Fixed History day grouping: every entry, old or new, is now placed in its chore day from its timestamp, so after midnight and before 2 AM entries stay under Today instead of splitting into a second group. The weekly standings use the same rule.
 

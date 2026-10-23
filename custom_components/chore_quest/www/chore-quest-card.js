@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '2.11.1';
+  var CARD_VERSION = '2.11.2';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -1038,22 +1038,14 @@
       var s = this._s;
       var hr = (s.settings && s.settings.day_start_hour !== undefined) ? s.settings.day_start_hour : 2;
       var box = h('div');
-      box.appendChild(h('div', { cls: 'h2', text: 'History' }));
-      box.appendChild(h('div', { cls: 'hnote' }, [ic('mdi:clock-outline', 14), 'A new day starts at ' + pad(hr) + ':00']));
-      var yest = new Date(s.today + 'T00:00:00');
-      yest.setDate(yest.getDate() - 1);
-      var yIso = yest.getFullYear() + '-' + pad(yest.getMonth() + 1) + '-' + pad(yest.getDate());
-      var list = (s.recent || []).slice(0, 30);
+      box.appendChild(h('div', { cls: 'h2', text: "Today's history" }));
+      box.appendChild(h('div', { cls: 'hnote' }, [ic('mdi:clock-outline', 14), 'Clears and starts fresh at ' + pad(hr) + ':00']));
+      var list = (s.recent || []).filter(function (e) { return e.date === s.today; });
       if (!list.length) {
-        box.appendChild(h('div', { cls: 'sub', text: 'Nothing yet - finish a quest to start the story' }));
+        box.appendChild(h('div', { cls: 'sub', text: 'Nothing yet today - finish a quest to start the story' }));
         return box;
       }
-      var lastDay = null;
       list.forEach(function (e) {
-        if (e.date !== lastDay) {
-          lastDay = e.date;
-          box.appendChild(h('div', { cls: 'hday', text: e.date === s.today ? 'Today' : (e.date === yIso ? 'Yesterday' : e.date) }));
-        }
         var m = self._member(e.member);
         var up = e.delta >= 0;
         box.appendChild(h('div', { cls: 'rank', style: '--mc:' + (m ? m.color : '#888') }, [
