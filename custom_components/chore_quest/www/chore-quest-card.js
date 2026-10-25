@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '2.11.2';
+  var CARD_VERSION = '2.11.3';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -146,9 +146,9 @@
     '.chips{display:flex;flex-wrap:wrap;gap:8px}',
     '.homebtn{display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:22px;border:2px solid rgba(255,255,255,.18);background:rgba(255,255,255,.1);color:#fff;font:inherit;font-weight:800;cursor:pointer;margin-right:10px}',
     '.homebtn ha-icon{--mdc-icon-size:20px}',
-    '.phase{display:flex;align-items:center;gap:8px;margin:2px 0 10px;padding:8px 14px;border-radius:16px;font-weight:900;font-size:15px;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.12)}',
-    '.phase.day{border-color:rgba(255,196,0,.55);background:rgba(255,196,0,.12)}',
-    '.phase.night{border-color:rgba(130,120,255,.55);background:rgba(110,100,255,.16)}',
+    '.phase{display:flex;align-items:center;gap:8px;margin:2px 0 10px;padding:6px 14px;border-radius:14px;font-weight:900;font-size:14px;line-height:1.2;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.12)}',
+    '.phase.ph-day{border-color:rgba(255,196,0,.55);background:rgba(255,196,0,.12)}',
+    '.phase.ph-night{border-color:rgba(130,120,255,.55);background:rgba(110,100,255,.16)}',
     '.phase ha-icon{--mdc-icon-size:22px}',
     '.phase small{margin-left:auto;font-weight:700;font-size:13px;opacity:.8}',
     '.wrap.sum{height:auto;min-height:0}',
@@ -671,7 +671,7 @@
       var later = (s.week[s.today] || []).filter(function (i) { return !i.done && !i.taken_by && i.phase && i.phase !== cur; }).length;
       var kids = [ic(cur === 'day' ? 'mdi:white-balance-sunny' : 'mdi:weather-night'), cur === 'day' ? 'Day quests' : 'Night quests'];
       if (later) { kids.push(h('small', { text: later + (cur === 'day' ? ' waiting for tonight' : ' waiting for tomorrow') })); }
-      return h('div', { cls: 'phase ' + cur }, kids);
+      return h('div', { cls: 'phase ph-' + cur }, kids);
     }
 
     /* ---------------------------------------------------------- rooms */
@@ -712,7 +712,7 @@
       var todo = {};
       var seen = {};
       (s.week[s.today] || []).forEach(function (it) {
-        if (it.done || it.taken_by) { return; }
+        if (it.done || it.taken_by || !self._inPhase(it)) { return; }
         var ch = self._chore(it.chore_id);
         if (!ch) { return; }
         var a = self._area(ch.area);

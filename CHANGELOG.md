@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.11.3
+- Room filter counts (All, Kitchen, ...) now count only the quests due in the current half of the day, matching what is on screen.
+- The Day/Night banner is a slim one-line bar everywhere. A style clash with the Week view's day rows made it tall on the tablet.
+
 ## 2.11.2
 - Cup tab history now shows only the current chore day and starts fresh at the new-day hour.
 
