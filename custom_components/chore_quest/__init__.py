@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "2.11.3"
+VERSION = "2.12.0"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -178,7 +178,7 @@ class ChoreQuest:
             data = _default_data()
         for key in ("members", "chores", "prizes", "ledger", "areas"):
             data.setdefault(key, [])
-        for key in ("completions", "bonuses", "streaks"):
+        for key in ("completions", "bonuses", "streaks", "bumps"):
             data.setdefault(key, {})
         if data.get("schema", 1) < SCHEMA:
             self._migrate(data)
@@ -250,7 +250,7 @@ class ChoreQuest:
 
     def _prune(self) -> None:
         cutoff = (self.today() - dt.timedelta(days=KEEP_DAYS)).isoformat()
-        for bucket in ("completions", "bonuses"):
+        for bucket in ("completions", "bonuses", "bumps"):
             self.data[bucket] = {k: v for k, v in self.data[bucket].items() if k.split("|")[0] >= cutoff}
         self.data["ledger"] = self.data["ledger"][-LEDGER_MAX:]
 
@@ -416,6 +416,7 @@ class ChoreQuest:
     def due(self, day: dt.date) -> list[dict]:
         out = []
         done = self.data["completions"]
+        bumps = self.data["bumps"]
         for ch in self.data["chores"]:
             slots = self.slots_of(ch)
             who = self.assignees_on(ch, day)
@@ -428,6 +429,8 @@ class ChoreQuest:
                             owner = mid
                             break
                 for mid in who:
+                    if self._key(day, ch["id"], mid, idx) in bumps:
+                        continue
                     mine = self._key(day, ch["id"], mid, idx) in done
                     out.append(
                         {
@@ -456,18 +459,19 @@ class ChoreQuest:
         return 0
 
     # ------------------------------------------------------------ ledger
-    def log(self, mid: str, delta: int, kind: str, label: str) -> None:
+    def log(self, mid: str, delta: int, kind: str, label: str, ref: dict | None = None) -> None:
         now = dt_util.now()
-        self.data["ledger"].append(
-            {
-                "ts": now.isoformat(),
-                "date": self.today().isoformat(),
-                "member": mid,
-                "delta": delta,
-                "kind": kind,
-                "label": label,
-            }
-        )
+        entry = {
+            "ts": now.isoformat(),
+            "date": self.today().isoformat(),
+            "member": mid,
+            "delta": delta,
+            "kind": kind,
+            "label": label,
+        }
+        if ref:
+            entry["ref"] = ref
+        self.data["ledger"].append(entry)
         if len(self.data["ledger"]) > LEDGER_MAX:
             self.data["ledger"] = self.data["ledger"][-LEDGER_MAX:]
 
@@ -605,6 +609,8 @@ class ChoreQuest:
         key = self._key(today, ch["id"], m["id"], slot)
         if key in self.data["completions"]:
             return {"already": True}
+        if self.data["bumps"]:
+            self._drop_bump(ch, m["id"], today, slot)
         if ch.get("claim") == "first":
             for other in self.assignees_on(ch, today):
                 if other != m["id"] and self._key(today, ch["id"], other, slot) in self.data["completions"]:
@@ -629,6 +635,49 @@ class ChoreQuest:
             self.data["bonuses"][bonus_key] = {"amount": amount, "prev": prev}
             result.update(bonus=amount, streak=count, all_done=True)
         return result
+
+    def _bump_members(self, ch: dict, mid: str, today: dt.date) -> list[str]:
+        who = self.assignees_on(ch, today)
+        return who if ch.get("claim") == "first" and len(who) > 1 else [mid]
+
+    def _drop_bump(self, ch: dict, mid: str, today: dt.date, slot: int) -> None:
+        for other in self._bump_members(ch, mid, today):
+            self.data["bumps"].pop(self._key(today, ch["id"], other, slot), None)
+        self.data["ledger"] = [
+            e for e in self.data["ledger"]
+            if not (e.get("kind") == "bump" and (e.get("ref") or {}).get("chore_id") == ch["id"]
+                    and (e.get("ref") or {}).get("slot") == slot and self.entry_day(e) == today.isoformat())
+        ]
+
+    def _a_bump(self, p: dict) -> dict:
+        """Take a quest off today's list without awarding coins."""
+        ch = self.chore(p.get("chore_id"))
+        m = self.member(p.get("member_id"))
+        if not ch or not m:
+            raise ValueError("Unknown chore or member")
+        today = self.today()
+        slot = _clean_int(p.get("slot"), 0, 9, 0)
+        if m["id"] not in self.assignees_on(ch, today) or slot >= len(self.slots_of(ch)):
+            raise ValueError("That quest is not on the board today")
+        if self._key(today, ch["id"], m["id"], slot) in self.data["completions"]:
+            raise ValueError("That quest is already done")
+        if ch.get("claim") == "first":
+            for other in self.assignees_on(ch, today):
+                if self._key(today, ch["id"], other, slot) in self.data["completions"]:
+                    raise ValueError("Someone already did that one")
+        stamp = dt_util.now().isoformat()
+        for other in self._bump_members(ch, m["id"], today):
+            self.data["bumps"][self._key(today, ch["id"], other, slot)] = {"ts": stamp}
+        self.log(m["id"], 0, "bump", "Bumped: " + self._label(ch, slot), {"chore_id": ch["id"], "slot": slot})
+        return {}
+
+    def _a_unbump(self, p: dict) -> dict:
+        ch = self.chore(p.get("chore_id"))
+        m = self.member(p.get("member_id"))
+        if not ch or not m:
+            raise ValueError("Unknown chore or member")
+        self._drop_bump(ch, m["id"], self.today(), _clean_int(p.get("slot"), 0, 9, 0))
+        return {}
 
     def _a_uncomplete(self, p: dict) -> dict:
         ch = self.chore(p.get("chore_id"))

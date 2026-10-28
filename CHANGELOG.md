@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.12.0
+- **Bump a quest.** A small skip button on each open quest takes it off today's list without awarding coins, after a quick confirmation. The quest counts disappear from that person's totals, and nothing is awarded for it. Bumps show in Today's history with an Undo button. Bumping a first-to-tap quest removes it for everyone. Tapping the quest again after an undo, or finishing it by service, brings it back.
+- New `bump: false` card option hides the button.
+
 ## 2.11.4
 - Fix intermittent iOS/Safari config error: replaced `if (!customElements.get(...))` guard with bare `customElements.define()`. The guarded form returns `undefined` on iOS WebView for already-registered elements, causing the define to never run and the card to fail with a config error on reload.
 

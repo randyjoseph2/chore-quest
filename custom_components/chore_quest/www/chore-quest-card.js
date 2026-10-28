@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '2.11.4';
+  var CARD_VERSION = '2.12.0';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -122,6 +122,9 @@
     '.champ ha-icon{--mdc-icon-size:32px;color:#ffd23f}',
     '.sec{background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.1);border-radius:18px;padding:12px;margin-bottom:14px}',
     '.sec .h2{margin-top:0}',
+    '.bumpb{flex:none;width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}',
+    '.bumpb:active{background:rgba(255,255,255,.2)}',
+    '.bumptag{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:900;color:#c9ceff}',
     '.drag{touch-action:none;cursor:grab;color:rgba(255,255,255,.55);display:flex;align-items:center;padding:4px 2px;user-select:none;-webkit-user-select:none}',
     '.row.dragging{opacity:.85;position:relative;z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.5);outline:2px solid #ffd23f}',
     '.row.dropbefore{box-shadow:0 -4px 0 #ffd23f}.row.dropafter{box-shadow:0 4px 0 #ffd23f}.grp.drophdr{outline:2px dashed #ffd23f;border-radius:8px}',
@@ -813,6 +816,12 @@
         if (!ch) { return; }
         var taker = it.taken_by ? self._member(it.taken_by) : null;
         var right = taker ? h('div', { cls: 'rw' }, [ic('mdi:account-check')]) : (it.done ? h('div', { cls: 'rw' }, [ic('mdi:check-circle')]) : h('div', { cls: 'rw' }, [coin(26), '+' + ch.coins]));
+        if (!taker && !it.done && self._cfg.bump !== false) {
+          right = h('div', { style: 'display:flex;align-items:center;gap:8px' }, [right, h('button', {
+            cls: 'bumpb', type: 'button', title: 'Bump',
+            onclick: function (ev) { ev.stopPropagation(); self._bump(ch, m, it.slot || 0, it.label || ''); }
+          }, [ic('mdi:skip-next', 20)])]);
+        }
         var sub = it.label || '';
         var rl = self._roomLabel(ch);
         if (rl) { sub = (sub ? sub + ' - ' : '') + rl; }
@@ -828,6 +837,14 @@
         col.appendChild(tile);
       });
       return col;
+    }
+
+    _bump(ch, m, slot, label) {
+      var self = this;
+      var shared = ch.claim === 'first' && (ch.assignees || []).length > 1 && ch.rotate !== 'daily' && ch.rotate !== 'weekly';
+      this._confirm('Bump "' + ch.name + (label ? ' - ' + label : '') + '" off ' + (shared ? 'everyone\'s list' : m.name + '\'s list') + ' for today? No coins are awarded.', function () {
+        return self._call('bump', { chore_id: ch.id, member_id: m.id, slot: slot || 0 }).then(function () { self._render(); });
+      }, 'Bump it', 'Bump quest?');
     }
 
     _tapChore(ch, m, isDone, ev, slot, label) {
@@ -1051,7 +1068,11 @@
         box.appendChild(h('div', { cls: 'rank', style: '--mc:' + (m ? m.color : '#888') }, [
           m ? avatar(m, 34) : h('div'),
           h('div', { style: 'flex:1;min-width:0' }, [h('div', { style: 'font-weight:900', text: e.label }), h('small', { style: 'opacity:.75;font-weight:800', text: (m ? m.name : '?') + ' - ' + timeLabel(e.ts) })]),
-          h('b', { style: 'display:flex;align-items:center;gap:4px;color:' + (up ? '#3ddc84' : '#ff6b78'), text: '' }, [coin(18), (up ? '+' : '') + e.delta])
+          e.kind === 'bump'
+            ? h('div', { cls: 'bumptag' }, [h('span', { text: 'Bumped' }), h('button', { cls: 'btn sm', type: 'button', onclick: function () {
+                self._call('unbump', { chore_id: e.ref && e.ref.chore_id, member_id: e.member, slot: (e.ref && e.ref.slot) || 0 }).then(function () { self._render(); }).catch(function (er) { self._err(er); });
+              } }, [ic('mdi:undo', 16), ' Undo'])])
+            : h('b', { style: 'display:flex;align-items:center;gap:4px;color:' + (up ? '#3ddc84' : '#ff6b78'), text: '' }, [coin(18), (up ? '+' : '') + e.delta])
         ]));
       });
       return box;
@@ -1426,11 +1447,11 @@
 
     _closeModal() { this._ovl.textContent = ''; }
 
-    _confirm(msg, fn) {
+    _confirm(msg, fn, label, title) {
       this._openModal({
-        title: 'Are you sure?',
+        title: title || 'Are you sure?',
         body: [h('div', { cls: 'msg', text: msg })],
-        actions: [{ label: 'Cancel', cls: 'alt' }, { label: 'Delete', cls: 'no', fn: fn }]
+        actions: [{ label: 'Cancel', cls: 'alt' }, { label: label || 'Delete', cls: 'no', fn: fn }]
       });
     }
 

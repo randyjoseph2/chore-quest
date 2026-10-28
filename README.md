@@ -17,6 +17,7 @@ Built for a wall tablet and phones from a single card, with an admin-only sideba
   - **first to tap wins** (one person gets the coins, the others see "Sam got it").
 - **Rooms and groups.** Organise quests by room (Kitchen, Boys Bath, ...) and group rooms (Bathrooms, Bedrooms, ...). Filter buttons on the Quests and Week tabs show what is still open per group.
 - **Day and night quests.** Point Chore Quest at a time-of-day entity and the family card only shows (and only lets people tap) the quests for the current half of the day. Morning and Afternoon quests are the day half, Evening and Night quests are the night half. Quests with no time of day are always available.
+- **Bump a quest.** The small skip button on a quest takes it off today's list with no coins awarded (after a confirmation). It shows up in Today's history with an Undo. For a first-to-tap quest, bumping removes it for everyone.
 - **Prize shop.** Parents add prizes with a coin cost. Redeeming can send a phone notification.
 - **Week view and Cup.** A week-at-a-glance board and a standings screen.
 - **Per-user snap.** When a logged-in person matches a racer, the card opens on their name (phone) or moves their column first with a YOU tag (tablet).
@@ -62,6 +63,7 @@ The layout follows the card's width: under 720 px you get the phone layout with 
 | `title` | text | Chore Quest | Header title. |
 | `phase_filter` | `false` | on | Show every quest on this card, ignoring the time of day. |
 | `parent_tab` | `false` | shown | Hide the Parent tab on the family card. |
+| `bump` | `false` | shown | Hide the Bump button on quests. |
 | `mode` (summary) | `summary` | none | Compact overview tile for a Home screen: a coin and progress ring per racer, the day or night banner, and one tap to open the full page. |
 | `open_path` | dashboard path, for example `/tablet-4-0/chores` | none | Where the summary tile navigates when tapped. |
 | `back_path` | dashboard path, for example `/tablet-4-0/0` | none | Adds a Home button that navigates there. |

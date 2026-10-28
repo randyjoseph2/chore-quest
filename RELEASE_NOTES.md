@@ -1,6 +1,7 @@
-# Chore Quest 2.11.3
+# Chore Quest 2.12.0
 
 ## What's new
+- **Bump a quest.** A small skip button on each open quest takes it off today's list without coins, with a confirmation. Bumps appear in Today's history with an Undo.
 - **Cleaner room counts.** The filter pills count only what is due right now, not the whole day.
 - **Slim Day/Night banner** that looks the same on tablet and phone.
 - **Today's history only.** The Cup tab history shows just today and clears at the new-day hour.
