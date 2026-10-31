@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.1.0
+- More stats on the Cup tab: completion rate over the last four weeks, average coins per week, favorite quest, race wins (first-to-tap), Grand Prix weekly wins, and a household line for the most bumped quest.
+- Grand Prix wins are counted when each week closes, and counted back through your existing history the first time this version starts.
+
 ## 3.0.0
 - **Lifetime stats** on the Cup tab: coins earned, coins spent, quests done, best day and best streak for every racer, with a crown on the top earner. The counters are kept forever in a few numbers per racer, so they stay tiny even as the history is trimmed. Existing history is counted in the first time this version starts.
 - **Send coins.** A Send coins button on the Cup tab (and in the admin Racers menu) moves coins from one racer to another, for example paying the boys from a parent's balance, or hands coins out from the bank at no cost to anyone. A PIN is asked for when one is set. Transfers show in Today's history and do not count as earned, so the Earned stat stays honest. Racers get a Gifts line when they receive some.

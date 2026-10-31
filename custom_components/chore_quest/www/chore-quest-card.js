@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '3.0.0';
+  var CARD_VERSION = '3.1.0';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -122,7 +122,7 @@
     '.champ ha-icon{--mdc-icon-size:32px;color:#ffd23f}',
     '.sec{background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.1);border-radius:18px;padding:12px;margin-bottom:14px}',
     '.sec .h2{margin-top:0}',
-    '.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px}',
+    '.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-bottom:12px}',
     '.scard{border-radius:16px;padding:12px;background:rgba(255,255,255,.06);border:2px solid var(--mc,#888)}',
     '.scard .sh{display:flex;align-items:center;gap:8px;font-weight:900;text-transform:uppercase;margin-bottom:8px}',
     '.scard .sr{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;font-size:13px;font-weight:800;color:rgba(230,233,255,.8)}',
@@ -1081,12 +1081,24 @@
           row('Spent', st.spent || 0, false, true),
           row('Quests done', st.quests || 0, false, false),
           row('Best day', bd.coins || 0, false, true),
-          row('Best streak', (st.best_streak || 0) + ' d', false, false)
+          row('Best streak', (st.best_streak || 0) + ' d', false, false),
+          row('Completion (4 wks)', (m.rate === null || m.rate === undefined) ? '-' : m.rate + '%', false, false),
+          row('Avg per week', m.avg_week || 0, false, true)
         ]);
+        var fav = null;
+        var bc = st.by_chore || {};
+        Object.keys(bc).forEach(function (k) { if (!fav || bc[k] > bc[fav]) { fav = k; } });
+        if (fav) { card.appendChild(row('Favorite quest', fav + ' x' + bc[fav], false, false)); }
+        if (st.race_wins) { card.appendChild(row('Race wins', st.race_wins, false, false)); }
+        if (st.gp_wins) { card.appendChild(row('Grand Prix wins', st.gp_wins, false, false)); }
         if (st.gifted) { card.appendChild(row('Gifts', st.gifted, false, true)); }
         grid.appendChild(card);
       });
       box.appendChild(grid);
+      var hh = s.household || {};
+      if (hh.most_bumped) {
+        box.appendChild(h('div', { cls: 'hnote', style: 'margin:0 0 10px' }, [ic('mdi:skip-next', 14), 'Most bumped quest: ' + hh.most_bumped.name + ' (' + hh.most_bumped.count + 'x)']));
+      }
       return box;
     }
 

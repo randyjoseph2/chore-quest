@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "3.0.0"
+VERSION = "3.1.0"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -193,6 +193,11 @@ class ChoreQuest:
         if not data.get("stats_ready"):
             self._backfill_stats()
             data["stats_ready"] = True
+        if data.get("stats_v", 1) < 2:
+            self._backfill_extra()
+            data["stats_v"] = 2
+        self.data.setdefault("bump_counts", {})
+        self._award_gp()
         self._prune()
         self.save()
 
@@ -306,6 +311,8 @@ class ChoreQuest:
         start = _clean_int(self.data["settings"].get("day_start_hour"), 0, 6, 0)
 
         def rolled(_now) -> None:
+            if self._award_gp():
+                self.save()
             self.publish_states()
             self.hass.bus.async_fire(EVENT_UPDATED, {"action": "new_day"})
 
@@ -466,7 +473,8 @@ class ChoreQuest:
     @staticmethod
     def _blank_stats() -> dict:
         return {"earned": 0, "spent": 0, "quests": 0, "gifted": 0, "sent": 0,
-                "best_day": {"coins": 0, "date": ""}, "best_streak": 0, "day": {"date": "", "coins": 0}}
+                "best_day": {"coins": 0, "date": ""}, "best_streak": 0, "day": {"date": "", "coins": 0},
+                "by_chore": {}, "race_wins": 0, "gp_wins": 0}
 
     def stats_of(self, m: dict) -> dict:
         st = m.setdefault("stats", self._blank_stats())
@@ -497,6 +505,98 @@ class ChoreQuest:
             st["gifted"] += max(0, delta)
         elif kind == "gift_out":
             st["sent"] += max(0, -delta)
+
+    def _count_quest(self, m: dict, ch: dict, race: bool, sign: int) -> None:
+        st = self.stats_of(m)
+        n = st["by_chore"].get(ch["name"], 0) + sign
+        if n > 0:
+            st["by_chore"][ch["name"]] = n
+        else:
+            st["by_chore"].pop(ch["name"], None)
+        if race:
+            st["race_wins"] = max(0, st["race_wins"] + sign)
+
+    def _week_champion(self, week_start: dt.date) -> str | None:
+        end = week_start + dt.timedelta(days=6)
+        tot: dict[str, int] = {}
+        for e in self.data["ledger"]:
+            if e.get("kind") not in EARN_KINDS or not self.member(e.get("member")):
+                continue
+            try:
+                day = dt.date.fromisoformat(self.entry_day(e))
+            except ValueError:
+                continue
+            if week_start <= day <= end:
+                tot[e["member"]] = tot.get(e["member"], 0) + int(e.get("delta", 0))
+        if not tot or max(tot.values()) <= 0:
+            return None
+        return max(tot.items(), key=lambda kv: kv[1])[0]
+
+    def _award_gp(self) -> bool:
+        """Count a Grand Prix win for each finished week that has not been counted yet."""
+        today = self.today()
+        this_week = today - dt.timedelta(days=today.weekday())
+        last_week = this_week - dt.timedelta(days=7)
+        try:
+            done = dt.date.fromisoformat(self.data.get("gp_done", ""))
+        except ValueError:
+            try:
+                first = dt.date.fromisoformat(self.data.get("since", ""))
+            except ValueError:
+                first = today
+            done = first - dt.timedelta(days=first.weekday()) - dt.timedelta(days=7)
+        changed = False
+        week = done + dt.timedelta(days=7)
+        while week <= last_week:
+            champ = self._week_champion(week)
+            if champ:
+                self.stats_of(self.member(champ))["gp_wins"] += 1
+            week += dt.timedelta(days=7)
+            changed = True
+        if changed or self.data.get("gp_done") != last_week.isoformat():
+            self.data["gp_done"] = last_week.isoformat()
+            return True
+        return False
+
+    def _backfill_extra(self) -> None:
+        """One time (stats v2): favorite quests, bump counts and the first day, from what the ledger holds."""
+        names = {c["id"]: c["name"] for c in self.data["chores"]}
+        days = [self.entry_day(e) for e in self.data["ledger"] if e.get("ts")]
+        self.data.setdefault("since", min(days) if days else self.today().isoformat())
+        counts: dict[str, int] = self.data.setdefault("bump_counts", {})
+        for e in self.data["ledger"]:
+            m = self.member(e.get("member"))
+            if not m:
+                continue
+            kind = e.get("kind")
+            label = str(e.get("label", ""))
+            if kind in ("chore", "undo"):
+                name = label.rsplit(" (", 1)[0] if label.endswith(")") else label
+                self._count_quest(m, {"name": name}, False, 1 if kind == "chore" else -1)
+            elif kind == "bump":
+                name = names.get((e.get("ref") or {}).get("chore_id"), "")
+                if name:
+                    counts[name] = counts.get(name, 0) + 1
+
+    def week_stats(self, mid: str) -> dict:
+        """Completion rate over finished days since the first day, and the weekly coin average."""
+        today = self.today()
+        try:
+            since = dt.date.fromisoformat(self.data.get("since", ""))
+        except ValueError:
+            since = today
+        start = max(since, today - dt.timedelta(days=28))
+        due = done = 0
+        day = start
+        while day < today:
+            for i in self.due(day):
+                if i["member_id"] == mid and not i["taken_by"]:
+                    due += 1
+                    done += 1 if i["done"] else 0
+            day += dt.timedelta(days=1)
+        st = self.stats_of(self.member(mid))
+        weeks = max(1.0, ((today - since).days + 1) / 7.0)
+        return {"rate": round(done * 100 / due) if due else None, "avg_week": round(st["earned"] / weeks, 1)}
 
     def _backfill_stats(self) -> None:
         """One time: build lifetime counters from whatever the ledger still holds."""
@@ -589,6 +689,7 @@ class ChoreQuest:
             members.append(
                 dict(
                     m,
+                    **self.week_stats(m["id"]),
                     streak=self.streak_now(m["id"]),
                     total=len(mine),
                     left=len([i for i in mine if not i["done"]]),
@@ -611,7 +712,13 @@ class ChoreQuest:
             "week": week,
             "standings": self._standings(),
             "recent": [dict(e, date=self.entry_day(e)) for e in reversed(self.data["ledger"][-60:])],
+            "household": self._household(),
         }
+
+    def _household(self) -> dict:
+        counts = self.data.get("bump_counts") or {}
+        top = max(counts.items(), key=lambda kv: kv[1]) if counts else None
+        return {"since": self.data.get("since", ""), "most_bumped": {"name": top[0], "count": top[1]} if top else None}
 
     def publish_states(self) -> None:
         """Expose per-member sensors so automations can use coins and chores left."""
@@ -693,6 +800,8 @@ class ChoreQuest:
                     raise ValueError("%s already did that one" % (om["name"] if om else "Someone"))
         coins = int(ch.get("coins", 1))
         self.data["completions"][key] = {"coins": coins, "ts": dt_util.now().isoformat()}
+        race = ch.get("claim") == "first" and len(self.assignees_on(ch, today)) > 1
+        self._count_quest(m, ch, race, 1)
         m["coins"] += coins
         self.log(m["id"], coins, "chore", self._label(ch, slot))
         result = {"coins": coins, "bonus": 0, "streak": self.streak_now(m["id"]), "member_id": m["id"]}
@@ -718,8 +827,16 @@ class ChoreQuest:
         return who if ch.get("claim") == "first" and len(who) > 1 else [mid]
 
     def _drop_bump(self, ch: dict, mid: str, today: dt.date, slot: int) -> None:
+        removed = False
         for other in self._bump_members(ch, mid, today):
-            self.data["bumps"].pop(self._key(today, ch["id"], other, slot), None)
+            removed = self.data["bumps"].pop(self._key(today, ch["id"], other, slot), None) is not None or removed
+        if removed:
+            counts = self.data.setdefault("bump_counts", {})
+            n = counts.get(ch["name"], 0) - 1
+            if n > 0:
+                counts[ch["name"]] = n
+            else:
+                counts.pop(ch["name"], None)
         self.data["ledger"] = [
             e for e in self.data["ledger"]
             if not (e.get("kind") == "bump" and (e.get("ref") or {}).get("chore_id") == ch["id"]
@@ -745,6 +862,8 @@ class ChoreQuest:
         stamp = dt_util.now().isoformat()
         for other in self._bump_members(ch, m["id"], today):
             self.data["bumps"][self._key(today, ch["id"], other, slot)] = {"ts": stamp}
+        counts = self.data.setdefault("bump_counts", {})
+        counts[ch["name"]] = counts.get(ch["name"], 0) + 1
         self.log(m["id"], 0, "bump", "Bumped: " + self._label(ch, slot), {"chore_id": ch["id"], "slot": slot})
         return {}
 
@@ -768,6 +887,7 @@ class ChoreQuest:
         if not rec:
             return {}
         coins = int(rec.get("coins", 0))
+        self._count_quest(m, ch, ch.get("claim") == "first" and len(self.assignees_on(ch, today)) > 1, -1)
         m["coins"] = max(0, m["coins"] - coins)
         self.log(m["id"], -coins, "undo", self._label(ch, slot))
         bonus_key = "%s|%s" % (today.isoformat(), m["id"])
