@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "3.1.0"
+VERSION = "3.2.0"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -42,6 +42,7 @@ ADMIN_ACTIONS = {
     "delete_area",
     "adjust",
     "gift",
+    "set_stats",
     "set_settings",
 }
 
@@ -739,6 +740,7 @@ class ChoreQuest:
                     "streak": m["streak"],
                     "lifetime_earned": self.stats_of(self.member(m["id"]))["earned"],
                     "lifetime_spent": self.stats_of(self.member(m["id"]))["spent"],
+                    "lifetime_gifted": self.stats_of(self.member(m["id"]))["gifted"],
                     "chores_total": m["total"],
                     "chores_left": m["left"],
                     "chores_left_now": m["left_now"],
@@ -1116,6 +1118,17 @@ class ChoreQuest:
         self.log(m["id"], applied, "adjust", _clean_str(p.get("label"), 40) or "Parent adjustment")
         return {}
 
+    def _a_set_stats(self, p: dict) -> dict:
+        """Correct a racer's lifetime counters (testing leftovers, back pay). Coin balances are not touched."""
+        m = self.member(p.get("member_id"))
+        if not m:
+            raise ValueError("Unknown racer")
+        st = self.stats_of(m)
+        for key in ("earned", "spent", "gifted", "quests"):
+            if p.get(key) is not None and p.get(key) != "":
+                st[key] = _clean_int(p.get(key), 0, 10_000_000, st[key])
+        return {}
+
     def _a_gift(self, p: dict) -> dict:
         """Move coins between racers, or hand some out from the bank (no cost to anyone)."""
         to = self.member(p.get("to_id"))
@@ -1228,6 +1241,30 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             "complete", {"chore_id": ch["id"], "member_id": m["id"], "slot": call.data.get("slot", 0), "force": True}, ""
         )
 
+    async def svc_set_stats(call: ServiceCall) -> None:
+        m = mgr.find_member(call.data["member"])
+        if not m:
+            raise ValueError("Unknown member %s" % call.data["member"])
+        payload = {"member_id": m["id"]}
+        for key in ("earned", "spent", "gifted", "quests"):
+            if key in call.data:
+                payload[key] = call.data[key]
+        await mgr.async_action("set_stats", payload, mgr.data["settings"].get("pin", ""))
+
+    hass.services.async_register(
+        DOMAIN,
+        "set_stats",
+        svc_set_stats,
+        schema=vol.Schema(
+            {
+                vol.Required("member"): cv.string,
+                vol.Optional("earned"): vol.Coerce(int),
+                vol.Optional("spent"): vol.Coerce(int),
+                vol.Optional("gifted"): vol.Coerce(int),
+                vol.Optional("quests"): vol.Coerce(int),
+            }
+        ),
+    )
     hass.services.async_register(
         DOMAIN,
         "add_coins",

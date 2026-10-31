@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.2.0
+- Edit lifetime stats: a chart button on each racer in the admin Racers menu opens a form to correct coins earned, spent, gifts received and quests done (for testing leftovers or back pay). It only changes the stats, never the coin balance.
+- New `chore_quest.set_stats` service and a `lifetime_gifted` sensor attribute.
+
 ## 3.1.0
 - More stats on the Cup tab: completion rate over the last four weeks, average coins per week, favorite quest, race wins (first-to-tap), Grand Prix weekly wins, and a household line for the most bumped quest.
 - Grand Prix wins are counted when each week closes, and counted back through your existing history the first time this version starts.

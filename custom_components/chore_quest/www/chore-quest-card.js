@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '3.1.0';
+  var CARD_VERSION = '3.2.0';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -1383,6 +1383,7 @@
           h('div', { cls: 'rt' }, [h('b', { text: m.name }), h('small', { text: (m.role === 'adult' ? 'Adult' : 'Kid') + (m.person ? ' - ' + m.person : '') })]),
           bankEl(m.coins, 18),
           h('button', { cls: 'btn sm gold', onclick: function () { self._adjustForm(m); } }, [ic('mdi:plus-minus-variant')]),
+          h('button', { cls: 'btn sm', title: 'Edit lifetime stats', onclick: function () { self._statsForm(m); } }, [ic('mdi:chart-box-outline')]),
           h('button', { cls: 'btn sm', onclick: function () { self._memberForm(m); } }, [ic('mdi:pencil')])
         ]));
       });
@@ -1767,6 +1768,23 @@
         title: m ? 'Edit racer' : 'New racer',
         body: [field('Name', name), field('Who', role.el), field('Logged-in person (opens on their name)', personPick.el), field('Color', sws), field('Avatar', this._iconGrid(AVATARS, iconIn)), field('Or type any mdi icon', iconIn)],
         actions: actions
+      });
+    }
+
+    _statsForm(m) {
+      var self = this;
+      var st = m.stats || {};
+      function num(v) { return h('input', { cls: 'inp', type: 'number', value: String(v || 0), min: '0', inputmode: 'numeric' }); }
+      var earned = num(st.earned), spent = num(st.spent), gifted = num(st.gifted), quests = num(st.quests);
+      this._openModal({
+        title: m.name + ' - lifetime stats',
+        body: [
+          h('div', { cls: 'msg', text: 'Fix leftovers from testing or move back pay into earned. This only changes the stats, not the coin balance.' }),
+          field('Coins earned', earned), field('Coins spent', spent), field('Gifts received', gifted), field('Quests done', quests)
+        ],
+        actions: [{ label: 'Cancel', cls: 'alt' }, { label: 'Save', cls: 'go', fn: function () {
+          return self._admin('set_stats', { member_id: m.id, earned: parseInt(earned.value, 10) || 0, spent: parseInt(spent.value, 10) || 0, gifted: parseInt(gifted.value, 10) || 0, quests: parseInt(quests.value, 10) || 0 });
+        } }]
       });
     }
 

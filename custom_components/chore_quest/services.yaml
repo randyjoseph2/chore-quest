@@ -51,3 +51,39 @@ complete_chore:
         number:
           min: 0
           max: 3
+
+set_stats:
+  name: Set lifetime stats
+  description: Correct a racer's lifetime counters (for example testing leftovers). Does not change their coin balance.
+  fields:
+    member:
+      name: Member
+      description: Member id or name.
+      required: true
+      example: parker
+      selector:
+        text:
+    earned:
+      name: Lifetime earned
+      selector:
+        number:
+          min: 0
+          max: 10000000
+    spent:
+      name: Lifetime spent
+      selector:
+        number:
+          min: 0
+          max: 10000000
+    gifted:
+      name: Gifts received
+      selector:
+        number:
+          min: 0
+          max: 10000000
+    quests:
+      name: Quests done
+      selector:
+        number:
+          min: 0
+          max: 10000000

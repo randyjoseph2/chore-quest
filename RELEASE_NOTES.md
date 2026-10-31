@@ -1,6 +1,7 @@
-# Chore Quest 3.1.0
+# Chore Quest 3.2.0
 
 ## What's new
+- **Edit lifetime stats.** Fix testing leftovers or move back pay into Earned from the admin Racers menu. Coin balances are never touched.
 - **More stats.** Completion rate (last four weeks), average coins per week, favorite quest, first-to-tap race wins, Grand Prix weekly wins, plus the most bumped quest in the household.
 - **Lifetime stats.** The Cup tab now shows coins earned, coins spent, quests done, best day and best streak for every racer, with a crown on the top earner.
 - **Send coins.** Pay the kids from a parent's balance, move coins between racers, or hand them out from the bank. Find it on the Cup tab and in the admin Racers menu.
