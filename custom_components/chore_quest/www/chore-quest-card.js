@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '2.12.0';
+  var CARD_VERSION = '3.0.0';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -122,6 +122,13 @@
     '.champ ha-icon{--mdc-icon-size:32px;color:#ffd23f}',
     '.sec{background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.1);border-radius:18px;padding:12px;margin-bottom:14px}',
     '.sec .h2{margin-top:0}',
+    '.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px}',
+    '.scard{border-radius:16px;padding:12px;background:rgba(255,255,255,.06);border:2px solid var(--mc,#888)}',
+    '.scard .sh{display:flex;align-items:center;gap:8px;font-weight:900;text-transform:uppercase;margin-bottom:8px}',
+    '.scard .sr{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;font-size:13px;font-weight:800;color:rgba(230,233,255,.8)}',
+    '.scard .sr b{display:flex;align-items:center;gap:4px;font-size:15px;color:#fff}',
+    '.scard .sr.big b{color:#ffd23f;font-size:18px}',
+    '.hrow{display:flex;align-items:center;justify-content:space-between;gap:8px}',
     '.bumpb{flex:none;width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}',
     '.bumpb:active{background:rgba(255,255,255,.2)}',
     '.bumptag{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:900;color:#c9ceff}',
@@ -1040,14 +1047,88 @@
           bankEl(r.coins, 20)
         ]));
       });
-      wrap.appendChild(h('div', { cls: 'h2', text: 'Coin bank' }));
+      wrap.appendChild(h('div', { cls: 'hrow' }, [
+        h('div', { cls: 'h2', text: 'Coin bank' }),
+        h('button', { cls: 'btn sm gold', type: 'button', onclick: function () { self._giftForm(); } }, [ic('mdi:hand-coin', 18), ' Send coins'])
+      ]));
       var bank = h('div', { cls: 'chips' });
       s.members.forEach(function (m) {
         bank.appendChild(h('div', { cls: 'pick', style: '--mc:' + m.color }, [avatar(m, 38), m.name, h('small', null, [coin(16), String(m.coins)])]));
       });
       wrap.appendChild(bank);
+      wrap.appendChild(this._cupStats());
       wrap.appendChild(this._cupHistory());
       return wrap;
+    }
+
+    _cupStats() {
+      var self = this;
+      var s = this._s;
+      var box = h('div');
+      box.appendChild(h('div', { cls: 'h2' }, [ic('mdi:arm-flex', 20), ' Lifetime stats']));
+      var grid = h('div', { cls: 'sgrid' });
+      var top = 0;
+      s.members.forEach(function (m) { var e = (m.stats || {}).earned || 0; if (e > top) { top = e; } });
+      s.members.forEach(function (m) {
+        var st = m.stats || {};
+        var bd = st.best_day || {};
+        function row(label, val, big, coinIcon) {
+          return h('div', { cls: 'sr' + (big ? ' big' : '') }, [h('span', { text: label }), h('b', null, coinIcon ? [coin(16), String(val)] : [String(val)])]);
+        }
+        var card = h('div', { cls: 'scard', style: '--mc:' + m.color }, [
+          h('div', { cls: 'sh' }, [avatar(m, 30), m.name, (top > 0 && (st.earned || 0) === top) ? ic('mdi:crown', 18, '#ffd23f') : null]),
+          row('Earned', st.earned || 0, true, true),
+          row('Spent', st.spent || 0, false, true),
+          row('Quests done', st.quests || 0, false, false),
+          row('Best day', bd.coins || 0, false, true),
+          row('Best streak', (st.best_streak || 0) + ' d', false, false)
+        ]);
+        if (st.gifted) { card.appendChild(row('Gifts', st.gifted, false, true)); }
+        grid.appendChild(card);
+      });
+      box.appendChild(grid);
+      return box;
+    }
+
+    _giftForm(preTo) {
+      var self = this;
+      var s = this._s;
+      var viewer = this._viewer();
+      var fromDef = (viewer && viewer.role === 'adult') ? viewer.id : '';
+      var kids = s.members.filter(function (m) { return m.role !== 'adult' && m.id !== fromDef; });
+      var toDef = preTo || (kids[0] ? kids[0].id : (s.members[0] ? s.members[0].id : ''));
+      var fromOpts = [{ v: '', label: 'The bank (free)', icon: 'bank' }].concat(s.members.map(function (m) { return { v: m.id, label: m.name + ' (' + m.coins + ')', color: m.color }; }));
+      var toOpts = s.members.map(function (m) { return { v: m.id, label: m.name, color: m.color }; });
+      var from = picker(fromOpts, [fromDef], false);
+      var to = picker(toOpts, [toDef], false);
+      var amt = 1;
+      var amtNum = h('b', { text: '1' });
+      var stepper = h('div', { cls: 'step2' }, [
+        h('button', { cls: 'btn sm', type: 'button', text: '-', onclick: function () { amt = Math.max(1, amt - 1); amtNum.textContent = String(amt); } }),
+        amtNum, coin(26),
+        h('button', { cls: 'btn sm', type: 'button', text: '+', onclick: function () { amt = Math.min(1000, amt + 1); amtNum.textContent = String(amt); } })
+      ]);
+      var quick = h('div', { cls: 'chips', style: 'margin-top:8px' });
+      [1, 5, 10, 25].forEach(function (n) {
+        quick.appendChild(h('button', { cls: 'cp', type: 'button', text: '+' + n, onclick: function () { amt = Math.min(1000, amt + n); amtNum.textContent = String(amt); } }));
+      });
+      var note = h('input', { cls: 'inp', type: 'text', placeholder: 'What for? (optional)', maxlength: '30' });
+      var needPin = s.settings.has_pin && !this._unlocked();
+      var pinIn = needPin ? h('input', { cls: 'inp', type: 'password', inputmode: 'numeric', placeholder: 'PIN', maxlength: '8' }) : null;
+      var body = [
+        field('From', from.el), field('To', to.el), field('How many coins', h('div', null, [stepper, quick])), field('Note', note)
+      ];
+      if (pinIn) { body.push(field('Parent PIN', pinIn)); }
+      this._openModal({
+        title: 'Send coins',
+        body: body,
+        actions: [{ label: 'Cancel', cls: 'alt' }, { label: 'Send', cls: 'go', fn: function () {
+          if (pinIn) { self._pin = pinIn.value; }
+          return self._admin('gift', { from_id: from.get()[0] || '', to_id: to.get()[0] || '', amount: amt, note: note.value }).then(function () {
+            self._toast('Sent ' + amt + (amt === 1 ? ' coin' : ' coins'), true);
+          });
+        } }]
+      });
     }
 
     _cupHistory() {
@@ -1293,6 +1374,7 @@
           h('button', { cls: 'btn sm', onclick: function () { self._memberForm(m); } }, [ic('mdi:pencil')])
         ]));
       });
+      racers.appendChild(h('button', { cls: 'btn gold', style: 'width:100%;margin-top:6px', onclick: function () { self._giftForm(); } }, [ic('mdi:hand-coin'), ' Send coins']));
       racers.appendChild(h('button', { cls: 'btn go', style: 'width:100%;margin-top:6px', onclick: function () { self._memberForm(null); } }, [ic('mdi:plus'), ' New racer']));
       return racers;
     }

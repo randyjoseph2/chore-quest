@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "2.12.0"
+VERSION = "3.0.0"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -41,6 +41,7 @@ ADMIN_ACTIONS = {
     "save_area",
     "delete_area",
     "adjust",
+    "gift",
     "set_settings",
 }
 
@@ -189,6 +190,9 @@ class ChoreQuest:
         settings.pop("streak_bonus", None)
         data["settings"] = settings
         self.data = data
+        if not data.get("stats_ready"):
+            self._backfill_stats()
+            data["stats_ready"] = True
         self._prune()
         self.save()
 
@@ -459,6 +463,71 @@ class ChoreQuest:
         return 0
 
     # ------------------------------------------------------------ ledger
+    @staticmethod
+    def _blank_stats() -> dict:
+        return {"earned": 0, "spent": 0, "quests": 0, "gifted": 0, "sent": 0,
+                "best_day": {"coins": 0, "date": ""}, "best_streak": 0, "day": {"date": "", "coins": 0}}
+
+    def stats_of(self, m: dict) -> dict:
+        st = m.setdefault("stats", self._blank_stats())
+        for k, v in self._blank_stats().items():
+            st.setdefault(k, v)
+        return st
+
+    def _tally(self, m: dict, kind: str, delta: int, day: str) -> None:
+        """Keep the lifetime counters up to date. They are tiny and never pruned, unlike the ledger."""
+        st = self.stats_of(m)
+        if kind in EARN_KINDS:
+            st["earned"] = max(0, st["earned"] + delta)
+            if kind == "chore":
+                st["quests"] += 1
+            elif kind == "undo":
+                st["quests"] = max(0, st["quests"] - 1)
+            if st["day"].get("date") != day:
+                st["day"] = {"date": day, "coins": 0}
+            st["day"]["coins"] = max(0, st["day"]["coins"] + delta)
+            best = st["best_day"]
+            if st["day"]["coins"] > best.get("coins", 0):
+                st["best_day"] = {"coins": st["day"]["coins"], "date": day}
+            elif best.get("date") == day:
+                best["coins"] = st["day"]["coins"]
+        elif kind == "redeem":
+            st["spent"] += max(0, -delta)
+        elif kind == "gift_in" or (kind == "adjust" and delta > 0):
+            st["gifted"] += max(0, delta)
+        elif kind == "gift_out":
+            st["sent"] += max(0, -delta)
+
+    def _backfill_stats(self) -> None:
+        """One time: build lifetime counters from whatever the ledger still holds."""
+        for m in self.data["members"]:
+            m["stats"] = self._blank_stats()
+        by_day: dict[tuple, int] = {}
+        for e in self.data["ledger"]:
+            m = self.member(e.get("member"))
+            if not m:
+                continue
+            st = self.stats_of(m)
+            kind, delta = e.get("kind"), int(e.get("delta", 0))
+            if kind in EARN_KINDS:
+                st["earned"] = max(0, st["earned"] + delta)
+                if kind == "chore":
+                    st["quests"] += 1
+                elif kind == "undo":
+                    st["quests"] = max(0, st["quests"] - 1)
+                k = (m["id"], self.entry_day(e))
+                by_day[k] = by_day.get(k, 0) + delta
+            elif kind == "redeem":
+                st["spent"] += max(0, -delta)
+            elif kind == "adjust" and delta > 0:
+                st["gifted"] += delta
+        for (mid, day), coins in by_day.items():
+            st = self.stats_of(self.member(mid))
+            if coins > st["best_day"]["coins"]:
+                st["best_day"] = {"coins": coins, "date": day}
+        for m in self.data["members"]:
+            m["stats"]["best_streak"] = int((self.data["streaks"].get(m["id"]) or {}).get("count", 0))
+
     def log(self, mid: str, delta: int, kind: str, label: str, ref: dict | None = None) -> None:
         now = dt_util.now()
         entry = {
@@ -471,6 +540,9 @@ class ChoreQuest:
         }
         if ref:
             entry["ref"] = ref
+        m = self.member(mid)
+        if m:
+            self._tally(m, kind, delta, entry["date"])
         self.data["ledger"].append(entry)
         if len(self.data["ledger"]) > LEDGER_MAX:
             self.data["ledger"] = self.data["ledger"][-LEDGER_MAX:]
@@ -513,6 +585,7 @@ class ChoreQuest:
         members = []
         for m in self.data["members"]:
             mine = [i for i in week[today.isoformat()] if i["member_id"] == m["id"] and not i["taken_by"]]
+            self.stats_of(m)
             members.append(
                 dict(
                     m,
@@ -557,6 +630,8 @@ class ChoreQuest:
                     "member_id": m["id"],
                     "role": m["role"],
                     "streak": m["streak"],
+                    "lifetime_earned": self.stats_of(self.member(m["id"]))["earned"],
+                    "lifetime_spent": self.stats_of(self.member(m["id"]))["spent"],
                     "chores_total": m["total"],
                     "chores_left": m["left"],
                     "chores_left_now": m["left_now"],
@@ -628,6 +703,8 @@ class ChoreQuest:
             yesterday = (today - dt.timedelta(days=1)).isoformat()
             count = prev.get("count", 0) + 1 if prev.get("last") == yesterday else 1
             streaks[m["id"]] = {"count": count, "last": today.isoformat()}
+            st = self.stats_of(m)
+            st["best_streak"] = max(st["best_streak"], count)
             amount = _clean_int(self.data["settings"].get("all_done_bonus"), 0, 20, 0)
             if amount > 0:
                 m["coins"] += amount
@@ -917,6 +994,29 @@ class ChoreQuest:
         applied = max(-m["coins"], delta)
         m["coins"] += applied
         self.log(m["id"], applied, "adjust", _clean_str(p.get("label"), 40) or "Parent adjustment")
+        return {}
+
+    def _a_gift(self, p: dict) -> dict:
+        """Move coins between racers, or hand some out from the bank (no cost to anyone)."""
+        to = self.member(p.get("to_id"))
+        if not to:
+            raise ValueError("Pick who gets the coins")
+        amount = _clean_int(p.get("amount"), 0, 1000, 0)
+        if amount <= 0:
+            raise ValueError("Enter an amount")
+        note = _clean_str(p.get("note"), 30)
+        src = self.member(p.get("from_id")) if p.get("from_id") else None
+        if p.get("from_id") and not src:
+            raise ValueError("Unknown racer")
+        if src and src["id"] == to["id"]:
+            raise ValueError("Pick two different racers")
+        if src:
+            if src["coins"] < amount:
+                raise ValueError("%s only has %d coins" % (src["name"], src["coins"]))
+            src["coins"] -= amount
+            self.log(src["id"], -amount, "gift_out", "Sent to %s%s" % (to["name"], ": " + note if note else ""))
+        to["coins"] += amount
+        self.log(to["id"], amount, "gift_in", "Gift from %s%s" % (src["name"] if src else "the bank", ": " + note if note else ""))
         return {}
 
     def _a_set_settings(self, p: dict) -> dict:

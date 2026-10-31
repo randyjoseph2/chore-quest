@@ -17,6 +17,7 @@ Built for a wall tablet and phones from a single card, with an admin-only sideba
   - **first to tap wins** (one person gets the coins, the others see "Sam got it").
 - **Rooms and groups.** Organise quests by room (Kitchen, Boys Bath, ...) and group rooms (Bathrooms, Bedrooms, ...). Filter buttons on the Quests and Week tabs show what is still open per group.
 - **Day and night quests.** Point Chore Quest at a time-of-day entity and the family card only shows (and only lets people tap) the quests for the current half of the day. Morning and Afternoon quests are the day half, Evening and Night quests are the night half. Quests with no time of day are always available.
+- **Lifetime stats and Send coins.** The Cup tab shows lifetime earned, spent, quests done, best day and best streak per racer. Send coins moves coins between racers (or from the bank) with a PIN check when one is set.
 - **Bump a quest.** The small skip button on a quest takes it off today's list with no coins awarded (after a confirmation). It shows up in Today's history with an Undo. For a first-to-tap quest, bumping removes it for everyone.
 - **Prize shop.** Parents add prizes with a coin cost. Redeeming can send a phone notification.
 - **Week view and Cup.** A week-at-a-glance board and a standings screen.

@@ -1,24 +1,14 @@
-# Chore Quest 2.12.0
+# Chore Quest 3.0.0
 
 ## What's new
-- **Bump a quest.** A small skip button on each open quest takes it off today's list without coins, with a confirmation. Bumps appear in Today's history with an Undo.
-- **Cleaner room counts.** The filter pills count only what is due right now, not the whole day.
-- **Slim Day/Night banner** that looks the same on tablet and phone.
-- **Today's history only.** The Cup tab history shows just today and clears at the new-day hour.
-- **History day fix.** Entries made between midnight and the new-day hour now stay under Today. Old entries are corrected too.
-- **History on the Cup tab.** Under the Coin bank: who did what, at what time, and the coins they earned, grouped by Today and Yesterday, with a subtle note on when the new day starts.
-- **Every other day quests.** Set the last time it was done and it comes back every second day. Built for things like bath nights.
-- **Drag and drop quests** in the admin Quests menu. Use the handle on the left to reorder, or drop a quest on another room's header to move it there.
-- **Add quest on every room header** in the admin Quests menu, with the room pre-selected, so there is no scrolling to the bottom. The Rooms menu is back to plain rooms.
-- **Week A and Week B.** Alternating weeks use your own names: Week A is an off weekend, Week B is a work weekend. Settings shows which one this week is.
-- **Work weeks and off weeks.** One date in Settings marks a week you work the weekend. Quests can follow your work weeks or your off weeks, so the whole set stays in step with your alternating schedule.
-- **Every other week quests.** Choose the days and which week is on, and the quest repeats on alternating weeks. Made for alternating work and off weekends.
-- **Add quest under every room** in the admin Rooms menu, with the room pre-selected. Each room also lists its quests for quick editing.
+- **Lifetime stats.** The Cup tab now shows coins earned, coins spent, quests done, best day and best streak for every racer, with a crown on the top earner.
+- **Send coins.** Pay the kids from a parent's balance, move coins between racers, or hand them out from the bank. Find it on the Cup tab and in the admin Racers menu.
+- **Bump a quest.** A skip button takes an open quest off today's list without coins, with an Undo in Today's history.
 
 ## Recently
-- Per-person "for tonight" counts in each racer's header.
-- Tap-to-toggle Morning, Afternoon, Evening and Night buttons in the quest form.
-- Overview tile for Home screens and a CQ icon.
+- Today's history on the Cup tab.
+- Every other day, every other week and Week A / Week B quests.
+- Drag to reorder quests and an Add quest button on every room.
 
 ## Updating
-Update in HACS, restart Home Assistant, then hard-refresh your dashboards.
+Update in HACS, restart Home Assistant, then hard-refresh your dashboards. Lifetime stats are built from your existing history the first time 3.0.0 starts.
