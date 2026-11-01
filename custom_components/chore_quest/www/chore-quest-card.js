@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '3.2.0';
+  var CARD_VERSION = '3.2.1';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -376,9 +376,14 @@
     _init() {
       var self = this;
       this._inited = true;
-      this._hass.connection.subscribeEvents(function () { self._load(); }, 'chore_quest_updated').then(function (u) {
-        if (self._inited) { self._unsub = u; } else { u(); }
-      });
+      var conn = this._hass.connection;
+      function keep(u) { if (self._inited) { self._unsub = u; } else { u(); } }
+      function viaEvents() {
+        conn.subscribeEvents(function () { self._load(); }, 'chore_quest_updated').then(keep).catch(function () { /* the 60 second refresh still covers it */ });
+      }
+      if (conn.subscribeMessage) {
+        conn.subscribeMessage(function () { self._load(); }, { type: 'chore_quest/subscribe' }).then(keep).catch(viaEvents);
+      } else { viaEvents(); }
       this._timer = setInterval(function () {
         self._tickClock();
         self._tickCount = (self._tickCount || 0) + 1;

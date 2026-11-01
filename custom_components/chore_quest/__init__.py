@@ -10,7 +10,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.storage import Store
@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "3.2.0"
+VERSION = "3.2.1"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -285,6 +285,7 @@ class ChoreQuest:
         if not eid:
             return
 
+        @callback
         def changed(_event) -> None:
             self.publish_states()
             self.hass.bus.async_fire(EVENT_UPDATED, {"action": "phase"})
@@ -311,6 +312,7 @@ class ChoreQuest:
             self._roll_unsub = None
         start = _clean_int(self.data["settings"].get("day_start_hour"), 0, 6, 0)
 
+        @callback
         def rolled(_now) -> None:
             if self._award_gp():
                 self.save()
@@ -1221,6 +1223,20 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         connection.send_result(msg["id"], result)
 
     websocket_api.async_register_command(hass, ws_action)
+
+    @websocket_api.websocket_command({vol.Required("type"): "chore_quest/subscribe"})
+    @callback
+    def ws_subscribe(hass: HomeAssistant, connection, msg: dict) -> None:
+        """Live updates for any logged-in user. (Plain event subscriptions are admin-only in Home Assistant.)"""
+
+        @callback
+        def forward(event) -> None:
+            connection.send_message(websocket_api.event_message(msg["id"], {"action": event.data.get("action", "")}))
+
+        connection.subscriptions[msg["id"]] = hass.bus.async_listen(EVENT_UPDATED, forward)
+        connection.send_result(msg["id"])
+
+    websocket_api.async_register_command(hass, ws_subscribe)
 
     async def svc_add_coins(call: ServiceCall) -> None:
         m = mgr.find_member(call.data["member"])

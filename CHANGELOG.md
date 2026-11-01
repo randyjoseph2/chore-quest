@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.2.1
+- Fix: events are now fired from the correct thread, which removes the "calls async_fire from a thread other than the event loop" errors in the log.
+- Fix: live updates now work for non-admin users (wall tablet user, family accounts). The card uses a new `chore_quest/subscribe` websocket command instead of a raw event subscription, which Home Assistant refuses for non-admins. Polling every 60 seconds remains as a fallback.
+
 ## 3.2.0
 - Edit lifetime stats: a chart button on each racer in the admin Racers menu opens a form to correct coins earned, spent, gifts received and quests done (for testing leftovers or back pay). It only changes the stats, never the coin balance.
 - New `chore_quest.set_stats` service and a `lifetime_gifted` sensor attribute.
