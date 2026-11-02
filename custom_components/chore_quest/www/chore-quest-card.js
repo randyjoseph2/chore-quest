@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '3.5.0';
+  var CARD_VERSION = '3.5.1';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -376,6 +376,7 @@
       if (this._hass && !this._inited) { this._init(); }
       if (window.ResizeObserver && !this._ro) {
         this._ro = new ResizeObserver(function () { self._applyLayout(); });
+        window.addEventListener('resize', this._onWin = function () { self._applyLayout(); });
         this._ro.observe(this);
       }
       this._applyLayout();
@@ -386,6 +387,7 @@
       if (this._unsub) { try { this._unsub(); } catch (e) { /* ignore */ } this._unsub = null; }
       if (this._timer) { clearInterval(this._timer); this._timer = null; }
       if (this._ro) { this._ro.disconnect(); this._ro = null; }
+      if (this._onWin) { window.removeEventListener('resize', this._onWin); this._onWin = null; }
     }
 
     _init() {
@@ -399,7 +401,9 @@
       if (conn.subscribeMessage) {
         conn.subscribeMessage(function () { self._load(); }, { type: 'chore_quest/subscribe' }).then(keep).catch(viaEvents);
       } else { viaEvents(); }
+      setTimeout(function () { self._applyLayout(); }, 1200);
       this._timer = setInterval(function () {
+        self._applyLayout();
         self._tickClock();
         self._tickCount = (self._tickCount || 0) + 1;
         if (self._tickCount % 3 === 0) { self._load(); }
@@ -407,9 +411,25 @@
       this._load();
     }
 
+    _fillScreen(mobile) {
+      var c = this._cfg;
+      if (!this.style || c.mode === 'summary' || c.mode === 'admin') { return; }
+      if (c.theme !== 'dashboard' || c.fill === false || mobile) {
+        if (this._filled) { this._filled = false; this.style.height = ''; this._wrap.style.minHeight = ''; }
+        return;
+      }
+      var top = this.getBoundingClientRect().top;
+      if (!(top >= 0 && top < window.innerHeight * 0.6)) { return; }
+      var hgt = Math.max(480, Math.round(window.innerHeight - top - 12));
+      this._filled = true;
+      this.style.height = hgt + 'px';
+      this._wrap.style.minHeight = hgt + 'px';
+    }
+
     _applyLayout() {
       var w = this.getBoundingClientRect().width || this.clientWidth || window.innerWidth;
       var mobile = this._cfg.layout === 'mobile' || (this._cfg.layout !== 'tablet' && w < 720);
+      this._fillScreen(mobile);
       if (mobile !== this._mobile) {
         this._mobile = mobile;
         if (mobile) { this._wrap.classList.add('mobile'); } else { this._wrap.classList.remove('mobile'); }

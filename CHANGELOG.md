@@ -1,5 +1,8 @@
 # Changelog
 
+## 3.5.1
+- With `theme: dashboard` the card now stretches to fill the screen below the top bar (and follows window resizes), so the quest columns use the whole height instead of stopping part way. Set `fill: false` to turn it off.
+
 ## 3.5.0
 - Prize notifications now go through Nabu Flow when it is installed: the `chore_quest` Discord channel plus a phone push, using your Nabu people, presence and quiet-mode rules. If Nabu Flow is missing, or the new setting is off (Parent > Settings), the old notify service is used as before.
 
