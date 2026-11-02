@@ -1,5 +1,8 @@
 # Changelog
 
+## 3.5.0
+- Prize notifications now go through Nabu Flow when it is installed: the `chore_quest` Discord channel plus a phone push, using your Nabu people, presence and quiet-mode rules. If Nabu Flow is missing, or the new setting is off (Parent > Settings), the old notify service is used as before.
+
 ## 3.4.0
 - **Nabu Flow sync.** If Nabu Flow is installed, Chore Quest now talks to it:
   - An alert in the Nabu bar while quests are still open in the current day or night half ("13 quests left tonight (Parker 3, Jacob 4...)"). It clears itself when everyone is done.

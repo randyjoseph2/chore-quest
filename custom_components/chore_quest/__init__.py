@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "3.4.0"
+VERSION = "3.5.0"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -60,6 +60,7 @@ DEFAULT_SETTINGS = {
     "nabu_tonight": True,
     "nabu_redeem": True,
     "nabu_remind": "19:30",
+    "nabu_notify": True,
 }
 
 
@@ -1064,6 +1065,24 @@ class ChoreQuest:
         return {"prize": prize["name"], "cost": cost}
 
     async def _notify(self, title: str, message: str) -> None:
+        if self.data["settings"].get("nabu_notify", True) and self._nabu_has("notify"):
+            try:
+                await self.hass.services.async_call(
+                    "nabu_flow",
+                    "notify",
+                    {
+                        "who": "all",
+                        "channel": "chore_quest",
+                        "title": title,
+                        "message": message,
+                        "severity": "info",
+                        "phone": "normal",
+                    },
+                    blocking=False,
+                )
+                return
+            except Exception:  # noqa: BLE001
+                _LOGGER.warning("Chore Quest could not send through Nabu Flow, falling back to its own notify service")
         service = self.data["settings"].get("notify_service", "")
         if not service or "." not in service:
             return
@@ -1324,6 +1343,8 @@ class ChoreQuest:
         if "nabu_tonight" in p:
             s["nabu_tonight"] = bool(p.get("nabu_tonight"))
             self._nabu_last = None
+        if "nabu_notify" in p:
+            s["nabu_notify"] = bool(p.get("nabu_notify"))
         if "nabu_redeem" in p:
             s["nabu_redeem"] = bool(p.get("nabu_redeem"))
         if "nabu_remind" in p:

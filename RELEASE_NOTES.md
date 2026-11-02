@@ -1,12 +1,11 @@
-# Chore Quest 3.4.0
+# Chore Quest 3.5.0
 
 ## What's new
-- **Nabu Flow sync.** The Nabu bar shows how many quests are left tonight and clears when everyone is done, flashes a short alert when a prize is redeemed, and can send a Discord reminder at a set time if quests are still open. Settings are under Parent > Settings.
-- **New sensor** `sensor.chore_quest_open` with the open quest count and a per-person breakdown.
+- **Notifications through Nabu Flow.** Prize redeemed notices now go out as a Nabu Flow notification (Discord channel `chore_quest` plus a phone push) so they follow your Nabu routing, presence and quiet mode. Falls back to the notify service if Nabu Flow is not there. Switch under Parent > Settings.
 
 ## Recently
-- Dashboard theme for Tablet 5.0 (`theme: dashboard`, 3.3.0).
-- Live updates for non-admin users (3.2.1).
+- Nabu bar alerts, Discord reminder and `sensor.chore_quest_open` (3.4.0).
+- Dashboard theme for Tablet 5.0 (3.3.0).
 
 ## Updating
 Update in HACS, restart Home Assistant, then hard-refresh your dashboards.
