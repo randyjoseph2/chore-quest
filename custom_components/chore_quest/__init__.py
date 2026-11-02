@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "3.3.0"
+VERSION = "3.4.0"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -57,6 +57,9 @@ DEFAULT_SETTINGS = {
     "all_done_bonus": 0,
     "notify_service": "notify.mobile_app_randys_iphone",
     "work_anchor": "2026-10-19",
+    "nabu_tonight": True,
+    "nabu_redeem": True,
+    "nabu_remind": "19:30",
 }
 
 
@@ -172,6 +175,9 @@ class ChoreQuest:
         self._sensor_ids: set[str] = set()
         self._phase_unsub = None
         self._roll_unsub = None
+        self._remind_unsub = None
+        self._nabu_last = None
+        self._nabu_queued = False
 
     # ------------------------------------------------------------ storage
     async def async_load(self) -> None:
@@ -723,6 +729,127 @@ class ChoreQuest:
         top = max(counts.items(), key=lambda kv: kv[1]) if counts else None
         return {"since": self.data.get("since", ""), "most_bumped": {"name": top[0], "count": top[1]} if top else None}
 
+    def open_now(self) -> dict:
+        """Quests still open in the current day/night half (a first-to-tap race counts once)."""
+        cur = self.phase()
+        seen: set = set()
+        count = 0
+        per: dict[str, int] = {}
+        for it in self.due(self.today()):
+            if it["done"] or it["taken_by"]:
+                continue
+            if cur and it["phase"] and it["phase"] != cur:
+                continue
+            ch = self.chore(it["chore_id"])
+            if ch and ch.get("claim") == "first":
+                key = (it["chore_id"], it["slot"])
+                if key in seen:
+                    continue
+                seen.add(key)
+            count += 1
+            m = self.member(it["member_id"])
+            if m:
+                per[m["name"]] = per.get(m["name"], 0) + 1
+        when = {"day": "today", "night": "tonight"}.get(cur or "", "")
+        return {"count": count, "by_person": per, "when": when}
+
+    def _nabu_has(self, name: str) -> bool:
+        return self.hass.services.has_service("nabu_flow", name)
+
+    def queue_nabu(self) -> None:
+        """Sync the open-quests alert with Nabu Flow (once per burst of changes)."""
+        if self._nabu_queued:
+            return
+        self._nabu_queued = True
+        self.hass.async_create_task(self._nabu_sync())
+
+    async def _nabu_sync(self) -> None:
+        self._nabu_queued = False
+        if not self._nabu_has("alert"):
+            return
+        info = self.open_now()
+        msg = None
+        if self.data["settings"].get("nabu_tonight", True) and info["count"] > 0:
+            who = ", ".join("%s %d" % (n, c) for n, c in info["by_person"].items())
+            msg = "%d quest%s left %s (%s)" % (info["count"], "" if info["count"] == 1 else "s", info["when"] or "now", who)
+        if msg == self._nabu_last:
+            return
+        self._nabu_last = msg
+        try:
+            if msg:
+                await self.hass.services.async_call(
+                    "nabu_flow",
+                    "alert",
+                    {"id": "chore_quest_open", "name": "Chore Quest", "message": msg, "priority": "info", "icon": "mdi:flag-checkered"},
+                    blocking=False,
+                )
+            elif self._nabu_has("alert_clear"):
+                await self.hass.services.async_call("nabu_flow", "alert_clear", {"id": "chore_quest_open"}, blocking=False)
+        except Exception:  # noqa: BLE001
+            _LOGGER.warning("Chore Quest could not update its Nabu Flow alert")
+
+    async def _nabu_redeemed(self, who: str, prize: str, cost: int) -> None:
+        if not self.data["settings"].get("nabu_redeem", True) or not self._nabu_has("alert"):
+            return
+        try:
+            await self.hass.services.async_call(
+                "nabu_flow",
+                "alert",
+                {
+                    "id": "chore_quest_redeem",
+                    "name": "Prize redeemed",
+                    "message": "%s spent %d coins on %s" % (who, cost, prize),
+                    "priority": "info",
+                    "icon": "mdi:gift",
+                    "duration": 900,
+                },
+                blocking=False,
+            )
+        except Exception:  # noqa: BLE001
+            _LOGGER.warning("Chore Quest could not raise its prize alert")
+
+    def track_reminder(self) -> None:
+        """Optional Discord nudge through Nabu Flow if quests are still open at a set time (HH:MM)."""
+        if self._remind_unsub:
+            self._remind_unsub()
+            self._remind_unsub = None
+        raw = str(self.data["settings"].get("nabu_remind") or "")
+        m = re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", raw)
+        if not m:
+            return
+
+        @callback
+        def fire(_now) -> None:
+            self.hass.async_create_task(self._nabu_remind())
+
+        self._remind_unsub = async_track_time_change(self.hass, fire, hour=int(m.group(1)), minute=int(m.group(2)), second=0)
+
+    async def _nabu_remind(self) -> None:
+        if not self._nabu_has("notify"):
+            return
+        info = self.open_now()
+        if info["count"] <= 0:
+            return
+        who = ", ".join("%s %d" % (n, c) for n, c in info["by_person"].items())
+        try:
+            await self.hass.services.async_call(
+                "nabu_flow",
+                "notify",
+                {
+                    "who": "all",
+                    "channel": "chore_quest",
+                    "title": "Quests still open",
+                    "message": "%d left %s: %s" % (info["count"], info["when"] or "now", who),
+                    "severity": "heads_up",
+                    "phone": "none",
+                    "dedupe_key": "chore_quest_remind",
+                    "cooldown": 3600,
+                },
+                blocking=False,
+            )
+        except Exception:  # noqa: BLE001
+            _LOGGER.warning("Chore Quest could not send its reminder through Nabu Flow")
+
     def publish_states(self) -> None:
         """Expose per-member sensors so automations can use coins and chores left."""
         today = self.today().isoformat()
@@ -749,9 +876,24 @@ class ChoreQuest:
                     "date": today,
                 },
             )
+        info = self.open_now()
+        wanted.add("sensor.chore_quest_open")
+        self.hass.states.async_set(
+            "sensor.chore_quest_open",
+            info["count"],
+            {
+                "friendly_name": "Chore Quest open quests",
+                "unit_of_measurement": "quests",
+                "icon": "mdi:flag-checkered",
+                "when": info["when"],
+                "by_person": info["by_person"],
+                "date": today,
+            },
+        )
         for stale in self._sensor_ids - wanted:
             self.hass.states.async_remove(stale)
         self._sensor_ids = wanted
+        self.queue_nabu()
 
     # ------------------------------------------------------------ actions
     async def async_action(self, action: str, payload: dict, pin: str, trusted: bool = False) -> dict:
@@ -918,6 +1060,7 @@ class ChoreQuest:
             {"member": m["name"], "member_id": m["id"], "prize": prize["name"], "cost": cost},
         )
         await self._notify("Prize redeemed", "%s spent %d coins on %s" % (m["name"], cost, prize["name"]))
+        await self._nabu_redeemed(m["name"], prize["name"], cost)
         return {"prize": prize["name"], "cost": cost}
 
     async def _notify(self, title: str, message: str) -> None:
@@ -1178,6 +1321,17 @@ class ChoreQuest:
                 raise ValueError("Pick a date in a week you work weekends") from err
         if "notify_service" in p:
             s["notify_service"] = _clean_str(p.get("notify_service"), 80)
+        if "nabu_tonight" in p:
+            s["nabu_tonight"] = bool(p.get("nabu_tonight"))
+            self._nabu_last = None
+        if "nabu_redeem" in p:
+            s["nabu_redeem"] = bool(p.get("nabu_redeem"))
+        if "nabu_remind" in p:
+            raw = str(p.get("nabu_remind") or "").strip()
+            if raw and not re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", raw):
+                raise ValueError("Use a time like 19:30, or leave it empty for no reminder")
+            s["nabu_remind"] = raw
+            self.track_reminder()
         return {}
 
 
@@ -1308,5 +1462,6 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
     mgr.track_rollover()
     mgr.track_phase()
+    mgr.track_reminder()
     mgr.publish_states()
     return True

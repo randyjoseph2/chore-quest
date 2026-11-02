@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '3.3.0';
+  var CARD_VERSION = '3.4.0';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -1839,6 +1839,9 @@
       var dayStart = h('input', { cls: 'inp', type: 'number', value: String(st.day_start_hour === undefined ? 2 : st.day_start_hour), min: '0', max: '6', inputmode: 'numeric' });
       var workIn = h('input', { cls: 'inp', type: 'date', value: st.work_anchor || '' });
       var phaseIn = h('input', { cls: 'inp', type: 'text', value: st.phase_entity || '', placeholder: 'input_select.timeofday' });
+      var nTonight = picker([{ v: 'on', label: 'On - Nabu Flow bar shows quests left' }, { v: 'off', label: 'Off' }], [st.nabu_tonight === false ? 'off' : 'on'], false);
+      var nRedeem = picker([{ v: 'on', label: 'On - Nabu Flow bar shows prizes' }, { v: 'off', label: 'Off' }], [st.nabu_redeem === false ? 'off' : 'on'], false);
+      var nRemind = h('input', { cls: 'inp', type: 'text', value: st.nabu_remind || '', placeholder: '19:30 (blank = no reminder)', maxlength: '5' });
       var phaseOn = picker([{ v: 'on', label: 'On - show only quests for now' }, { v: 'off', label: 'Off - show every quest' }], [st.phase_filter === false ? 'off' : 'on'], false);
       this._openModal({
         title: 'Settings',
@@ -1849,12 +1852,16 @@
           field('New chore day starts at (hour, 0 to 6)', dayStart),
           field('A date in any Week B (work weekend) week. This is Week ' + (this._s.work_week ? 'B' : 'A') + '. Weeks alternate A, B from there', workIn),
           field('Day and night quests', phaseOn.el),
-          field('Time of day entity (Morning/Afternoon = day, Evening/Night = night)', phaseIn)
+          field('Time of day entity (Morning/Afternoon = day, Evening/Night = night)', phaseIn),
+          field('Nabu Flow: open quests alert', nTonight.el),
+          field('Nabu Flow: prize redeemed alert', nRedeem.el),
+          field('Nabu Flow: Discord reminder if quests are still open at (HH:MM)', nRemind)
         ],
         actions: [{ label: 'Cancel', cls: 'alt' }, { label: 'Save', cls: 'go', fn: function () {
           var payload = {
             all_done_bonus: parseInt(bonus.value, 10) || 0, notify_service: svc.value,
-            day_start_hour: parseInt(dayStart.value, 10) || 0, phase_entity: phaseIn.value, work_anchor: workIn.value, phase_filter: (phaseOn.get()[0] || 'on') === 'on'
+            day_start_hour: parseInt(dayStart.value, 10) || 0, phase_entity: phaseIn.value, work_anchor: workIn.value, phase_filter: (phaseOn.get()[0] || 'on') === 'on',
+            nabu_tonight: (nTonight.get()[0] || 'on') === 'on', nabu_redeem: (nRedeem.get()[0] || 'on') === 'on', nabu_remind: nRemind.value.trim()
           };
           var newPin = pin.value.replace(/\D/g, '');
           if (newPin) { payload.pin = newPin; }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.4.0
+- **Nabu Flow sync.** If Nabu Flow is installed, Chore Quest now talks to it:
+  - An alert in the Nabu bar while quests are still open in the current day or night half ("13 quests left tonight (Parker 3, Jacob 4...)"). It clears itself when everyone is done.
+  - A short alert when a prize is redeemed.
+  - An optional Discord reminder (through your `chore_quest` channel) at a set time, only if quests are still open.
+  - All three can be turned off, and the reminder time changed, under Parent > Settings.
+- New sensor `sensor.chore_quest_open`: the number of open quests right now (a first-to-tap race counts once), with a per-person breakdown. Use it for Nabu Flow alert rules, the top bar badge or your own automations.
+
 ## 3.3.0
 - New card option `theme: dashboard`. The card drops its own blue game background, checkered flag, logo, Home button and clock, and sits on the dashboard's own background. Tabs become the same pill style as the Nabu Flow top bar (accent `--cq-accent`, default gold, text `--cq-ink`). Panels turn into soft glass and text follows the dashboard theme. Meant for Tablet 5.0 / NextGen UI, where the top bar already provides navigation. The default look is unchanged.
 
