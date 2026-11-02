@@ -1,12 +1,11 @@
-# Chore Quest 3.2.1
+# Chore Quest 3.3.0
 
 ## What's new
-- **Live updates on every device.** Tablets and non-admin accounts now update instantly when a quest is done, instead of waiting for the next refresh.
-- **Cleaner logs.** Fixed the thread errors that showed up in the Home Assistant log.
+- **Dashboard theme.** Add `theme: dashboard` to the card and it blends into the dashboard: no blue game backdrop, no extra logo, Home button or clock, and pill tabs that match the Nabu Flow top bar.
 
 ## Recently
-- Edit lifetime stats from the admin Racers menu.
-- More stats, lifetime stats, Send coins and Bump a quest.
+- Live updates for non-admin users and cleaner logs (3.2.1).
+- Edit lifetime stats, more stats, Send coins and Bump a quest.
 
 ## Updating
 Update in HACS, restart Home Assistant, then hard-refresh your dashboards.

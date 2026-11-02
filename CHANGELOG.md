@@ -1,5 +1,8 @@
 # Changelog
 
+## 3.3.0
+- New card option `theme: dashboard`. The card drops its own blue game background, checkered flag, logo, Home button and clock, and sits on the dashboard's own background. Tabs become the same pill style as the Nabu Flow top bar (accent `--cq-accent`, default gold, text `--cq-ink`). Panels turn into soft glass and text follows the dashboard theme. Meant for Tablet 5.0 / NextGen UI, where the top bar already provides navigation. The default look is unchanged.
+
 ## 3.2.1
 - Fix: events are now fired from the correct thread, which removes the "calls async_fire from a thread other than the event loop" errors in the log.
 - Fix: live updates now work for non-admin users (wall tablet user, family accounts). The card uses a new `chore_quest/subscribe` websocket command instead of a raw event subscription, which Home Assistant refuses for non-admins. Polling every 60 seconds remains as a fallback.

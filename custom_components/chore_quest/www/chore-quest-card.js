@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '3.2.1';
+  var CARD_VERSION = '3.3.0';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -31,6 +31,21 @@
     'font-family:"Trebuchet MS","Arial Rounded MT Bold",system-ui,sans-serif;',
     'background:radial-gradient(1100px 560px at 12% -10%,#2a1b6e 0%,rgba(42,27,110,0) 60%),radial-gradient(900px 500px at 100% 0%,#0b4a8f 0%,rgba(11,74,143,0) 55%),#0a0d28}',
     '.mobile .root{border-radius:0}',
+    '.root.dash{background:transparent;border-radius:0;font-family:var(--primary-font-family,inherit)}',
+    '.dash .top{padding:2px 4px 10px;gap:10px}',
+    '.dash .main{padding:0 4px 8px}',
+    '.dash .tabs{margin-left:0}',
+    '.dash .tab{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.03);box-shadow:none;border-radius:999px;padding:11px 20px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--secondary-text-color,#a9b8ae)}',
+    '.dash .tab.on{background:var(--cq-accent,#F7CB6B);border-color:var(--cq-accent,#F7CB6B);color:var(--cq-ink,#14151A);font-weight:700}',
+    '.dash .tab:active{transform:none;box-shadow:none}',
+    '.dash .col,.dash .day,.dash .dayh,.dash .wh,.dash .cell{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1)}',
+    '.dash .col{border-width:1px}',
+    '.dash .mh,.dash .wm{box-shadow:none}',
+    '.dash .wh.today,.dash .dayh.today{background:var(--cq-accent,#F7CB6B);color:var(--cq-ink,#14151A)}',
+    '.dash .cell.today{outline-color:var(--cq-accent,#F7CB6B)}',
+    '.dash .logo{color:var(--cq-accent,#F7CB6B);text-shadow:none}',
+    '.dash .sub,.dash .empty,.dash .clock span,.dash .ver{color:var(--secondary-text-color,#a9b8ae)}',
+    '.dash .chore.taken .rw ha-icon{color:var(--secondary-text-color,#a9b8ae)}',
     '.flag{height:10px;flex:none;background:repeating-conic-gradient(#fff 0% 25%,#15183a 0% 50%) 0 0/20px 20px}',
     '.top{display:flex;align-items:center;gap:14px;padding:10px 18px;flex:none}',
     '.logo{font-weight:900;font-size:26px;letter-spacing:2px;text-transform:uppercase;color:#ffd23f;text-shadow:3px 3px 0 #c2260d,6px 6px 0 rgba(0,0,0,.35);white-space:nowrap}',
@@ -504,10 +519,11 @@
       this._pickSelEl = null;
       if (!s) { root.appendChild(h('div', { cls: 'empty', text: 'Loading...' })); return; }
       if (this._cfg.mode === 'summary') { this._renderSummary(); return; }
-      root.className = 'root';
+      var dash = this._cfg.theme === 'dashboard';
+      root.className = 'root' + (dash ? ' dash' : '');
       root.onclick = null;
       var mobile = !!this._mobile;
-      root.appendChild(h('div', { cls: 'flag' }));
+      if (!dash) { root.appendChild(h('div', { cls: 'flag' })); }
       if (this._cfg.mode === 'admin') {
         root.appendChild(h('div', { cls: 'top' }, [h('div', { cls: 'logo', text: this._cfg.title || 'Chore Quest Admin' })]));
       } else {
@@ -613,6 +629,10 @@
         tabs.appendChild(h('button', { cls: 'tab' + (self._tab === t.id ? ' on' : ''), onclick: function () { self._setTab(t.id); } }, [ic(t.icon), t.label]));
       });
       this._clockEl = h('div', { cls: 'clock' }, [h('b'), h('span')]);
+      if (this._cfg.theme === 'dashboard') {
+        this._clockEl = null;
+        return h('div', { cls: 'top' }, [tabs]);
+      }
       return h('div', { cls: 'top' }, [this._homeBtn(), h('div', { cls: 'logo', text: this._cfg.title || 'Chore Quest' }), tabs, this._clockEl]);
     }
 
