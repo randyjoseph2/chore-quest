@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "3.5.1"
+VERSION = "3.5.2"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -1365,7 +1365,7 @@ async def _async_register_card(hass: HomeAssistant) -> None:
 
     path = Path(__file__).parent / "www" / "chore-quest-card.js"
     url = "/chore_quest/chore-quest-card.js"
-    await hass.http.async_register_static_paths([StaticPathConfig(url, str(path), False)])
+    await hass.http.async_register_static_paths([StaticPathConfig(url, str(path), True)])
     add_extra_js_url(hass, "%s?v=%s" % (url, VERSION))
 
 

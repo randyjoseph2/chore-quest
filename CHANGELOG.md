@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.5.2
+- Reliability fixes for the compact (and full) card on dashboards:
+  - If the first load fails (Home Assistant still starting, a websocket blip) the card now retries on its own with growing delays and shows "reconnecting" instead of sitting on "Loading..." for up to a minute.
+  - The last good state is remembered in the browser, so the card draws instantly on page load and during a short outage instead of flashing empty.
+  - The card file is now served with cache headers (the URL changes with every version), so phones and the wall tablet stop re-downloading 100 KB on every page load, which was the likeliest cause of the red "custom element doesn't exist" error on slow connections.
+  - A failed render can no longer throw inside the dashboard's update loop.
+
 ## 3.5.1
 - With `theme: dashboard` the card now stretches to fill the screen below the top bar (and follows window resizes), so the quest columns use the whole height instead of stopping part way. Set `fill: false` to turn it off.
 

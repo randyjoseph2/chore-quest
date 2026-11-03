@@ -3,7 +3,7 @@
  * No template literals, no emoji (ha-icon + inline SVG only), bare customElements.define.
  */
 (function () {
-  var CARD_VERSION = '3.5.1';
+  var CARD_VERSION = '3.5.2';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -317,12 +317,26 @@
     return { el: box, get: function () { return sel.slice(); }, set: function (v) { sel = v.slice(); paint(); } };
   }
 
+  var CACHE_KEY = 'chore_quest_state_v1';
+  function readCache() {
+    try {
+      var raw = window.localStorage.getItem(CACHE_KEY);
+      if (!raw) { return null; }
+      var o = JSON.parse(raw);
+      if (o && o.s && o.t && Date.now() - o.t < 12 * 3600 * 1000) { return o.s; }
+    } catch (e) { /* storage can be blocked; the card still works without it */ }
+    return null;
+  }
+  function writeCache(state) {
+    try { window.localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), s: state })); } catch (e) { /* ignore */ }
+  }
+
   class ChoreQuestCard extends HTMLElement {
     constructor() {
       super();
       this.attachShadow({ mode: 'open' });
       this._cfg = {};
-      this._s = null;
+      this._s = readCache();
       this._tab = 'today';
       this._grp = '';
       this._room = '';
@@ -367,7 +381,10 @@
     set hass(hass) {
       this._hass = hass;
       var ph = this._phase();
-      if (this._s && ph !== this._lastPhase) { this._lastPhase = ph; this._render(); }
+      if (this._s && ph !== this._lastPhase) {
+        this._lastPhase = ph;
+        try { this._render(); } catch (e) { /* a bad render must never break the dashboard */ }
+      }
       if (!this._inited && this.isConnected) { this._init(); }
     }
 
@@ -386,6 +403,7 @@
       this._inited = false;
       if (this._unsub) { try { this._unsub(); } catch (e) { /* ignore */ } this._unsub = null; }
       if (this._timer) { clearInterval(this._timer); this._timer = null; }
+      if (this._retryTimer) { clearTimeout(this._retryTimer); this._retryTimer = null; }
       if (this._ro) { this._ro.disconnect(); this._ro = null; }
       if (this._onWin) { window.removeEventListener('resize', this._onWin); this._onWin = null; }
     }
@@ -440,13 +458,33 @@
     /* ---------------------------------------------------------- data */
     _load() {
       var self = this;
-      return this._call('get').then(function () { self._render(); }).catch(function (e) { self._err(e); });
+      return this._call('get').then(function () {
+        self._failed = false;
+        self._retries = 0;
+        self._render();
+      }).catch(function (e) {
+        self._failed = true;
+        if (!self._s) { self._render(); }
+        self._err(e);
+        self._retryLoad();
+      });
+    }
+
+    _retryLoad() {
+      var self = this;
+      if (this._retryTimer || !this._inited) { return; }
+      this._retries = (this._retries || 0) + 1;
+      var wait = Math.min(30000, 1500 * Math.pow(2, this._retries - 1));
+      this._retryTimer = setTimeout(function () {
+        self._retryTimer = null;
+        if (self._inited && self._hass) { self._load(); }
+      }, wait);
     }
 
     _call(action, payload) {
       var self = this;
       return this._hass.callWS({ type: 'chore_quest/action', action: action, payload: payload || {}, pin: this._pin || '', as_admin: this._cfg.mode === 'admin' }).then(function (r) {
-        if (r && r.state) { self._s = r.state; }
+        if (r && r.state) { self._s = r.state; writeCache(r.state); }
         return r;
       });
     }
@@ -537,7 +575,12 @@
       this._clockEl = null;
       this._pickEl = null;
       this._pickSelEl = null;
-      if (!s) { root.appendChild(h('div', { cls: 'empty', text: 'Loading...' })); return; }
+      if (!s) {
+        root.className = 'root';
+        root.onclick = null;
+        root.appendChild(h('div', { cls: 'empty', text: this._failed ? 'Chore Quest is reconnecting...' : 'Loading...' }));
+        return;
+      }
       if (this._cfg.mode === 'summary') { this._renderSummary(); return; }
       var dash = this._cfg.theme === 'dashboard';
       root.className = 'root' + (dash ? ' dash' : '');
