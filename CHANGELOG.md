@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.5.3
+- The card is now registered as a Lovelace dashboard resource (the same way HACS cards are), and kept up to date by the integration on every version. Before, it was injected as an extra page script, which could finish loading after the dashboard had drawn its cards, leaving the red "Custom element doesn't exist" box on the compact tile and the big chores page. If your Home Assistant uses YAML-mode resources, it falls back to the old way.
+- Loading the card file twice (resource plus the old script) is now harmless.
+
 ## 3.5.2
 - Reliability fixes for the compact (and full) card on dashboards:
   - If the first load fails (Home Assistant still starting, a websocket blip) the card now retries on its own with growing delays and shows "reconnecting" instead of sitting on "Loading..." for up to a minute.

@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "3.5.2"
+VERSION = "3.5.3"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -1366,7 +1366,36 @@ async def _async_register_card(hass: HomeAssistant) -> None:
     path = Path(__file__).parent / "www" / "chore-quest-card.js"
     url = "/chore_quest/chore-quest-card.js"
     await hass.http.async_register_static_paths([StaticPathConfig(url, str(path), True)])
-    add_extra_js_url(hass, "%s?v=%s" % (url, VERSION))
+    full = "%s?v=%s" % (url, VERSION)
+    # A dashboard resource is loaded by Lovelace itself, which is far more dependable than an extra
+    # page script (those could finish loading after the cards were drawn, showing the red error box).
+    if await _async_lovelace_resource(hass, url, full):
+        return
+    add_extra_js_url(hass, full)
+
+
+async def _async_lovelace_resource(hass: HomeAssistant, base: str, full: str) -> bool:
+    """Add or refresh the card as a Lovelace resource (storage mode). Returns False when that is not possible."""
+    try:
+        data = hass.data.get("lovelace")
+        res = getattr(data, "resources", None)
+        if res is None and isinstance(data, dict):
+            res = data.get("resources")
+        if res is None or not hasattr(res, "async_create_item"):
+            return False
+        if not getattr(res, "loaded", True):
+            await res.async_load()
+            res.loaded = True
+        for item in res.async_items():
+            if str(item.get("url", "")).split("?")[0] == base:
+                if item.get("url") != full:
+                    await res.async_update_item(item["id"], {"res_type": "module", "url": full})
+                return True
+        await res.async_create_item({"res_type": "module", "url": full})
+        return True
+    except Exception:  # noqa: BLE001 - fall back to the extra page script
+        _LOGGER.debug("Chore Quest could not register a Lovelace resource", exc_info=True)
+        return False
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
