@@ -4,7 +4,7 @@
  */
 (function () {
   if (customElements.get('chore-quest-card')) { return; }
-  var CARD_VERSION = '3.5.3';
+  var CARD_VERSION = '3.6.0';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -1138,7 +1138,8 @@
       });
       wrap.appendChild(h('div', { cls: 'hrow' }, [
         h('div', { cls: 'h2', text: 'Coin bank' }),
-        h('button', { cls: 'btn sm gold', type: 'button', onclick: function () { self._giftForm(); } }, [ic('mdi:hand-coin', 18), ' Send coins'])
+        h('button', { cls: 'btn sm gold', type: 'button', onclick: function () { self._giftForm(); } }, [ic('mdi:hand-coin', 18), ' Send coins']),
+        h('button', { cls: 'btn sm', type: 'button', onclick: function () { self._fineForm(); } }, [ic('mdi:gavel', 18), ' Fine'])
       ]));
       var bank = h('div', { cls: 'chips' });
       s.members.forEach(function (m) {
@@ -1189,6 +1190,47 @@
         box.appendChild(h('div', { cls: 'hnote', style: 'margin:0 0 10px' }, [ic('mdi:skip-next', 14), 'Most bumped quest: ' + hh.most_bumped.name + ' (' + hh.most_bumped.count + 'x)']));
       }
       return box;
+    }
+
+    _fineForm(preTo) {
+      var self = this;
+      var s = this._s;
+      var kids = s.members.filter(function (m) { return m.role !== 'adult'; });
+      var pool = kids.length ? kids : s.members;
+      var opts = pool.map(function (m) { return { v: m.id, label: m.name + ' (' + m.coins + ')', color: m.color }; });
+      var who = picker(opts, [preTo || (pool[0] ? pool[0].id : '')], false);
+      var amt = 1;
+      var amtNum = h('b', { text: '1' });
+      var stepper = h('div', { cls: 'step2' }, [
+        h('button', { cls: 'btn sm', type: 'button', text: '-', onclick: function () { amt = Math.max(1, amt - 1); amtNum.textContent = String(amt); } }),
+        amtNum, coin(26),
+        h('button', { cls: 'btn sm', type: 'button', text: '+', onclick: function () { amt = Math.min(1000, amt + 1); amtNum.textContent = String(amt); } })
+      ]);
+      var quick = h('div', { cls: 'chips', style: 'margin-top:8px' });
+      [1, 5, 10, 25].forEach(function (n) {
+        quick.appendChild(h('button', { cls: 'cp', type: 'button', text: '+' + n, onclick: function () { amt = Math.min(1000, amt + n); amtNum.textContent = String(amt); } }));
+      });
+      var reason = h('input', { cls: 'inp', type: 'text', placeholder: 'Reason (required)', maxlength: '60' });
+      var why = h('div', { cls: 'chips', style: 'margin-top:8px' });
+      ['Not listening', 'Hitting', 'Yelling', 'Left a mess', 'Attitude'].forEach(function (t) {
+        why.appendChild(h('button', { cls: 'cp', type: 'button', text: t, onclick: function () { reason.value = t; } }));
+      });
+      var needPin = s.settings.has_pin && !this._unlocked();
+      var pinIn = needPin ? h('input', { cls: 'inp', type: 'password', inputmode: 'numeric', placeholder: 'PIN', maxlength: '8' }) : null;
+      var body = [field('Who', who.el), field('Fine (coins)', h('div', null, [stepper, quick])), field('Reason', h('div', null, [reason, why]))];
+      if (pinIn) { body.push(field('Parent PIN', pinIn)); }
+      this._openModal({
+        title: 'Fine',
+        body: body,
+        actions: [{ label: 'Cancel', cls: 'alt' }, { label: 'Fine', cls: 'go', fn: function () {
+          if (!reason.value.trim()) { return Promise.reject(new Error('Enter a reason')); }
+          if (pinIn) { self._pin = pinIn.value; }
+          return self._admin('fine', { member_id: who.get()[0] || '', amount: amt, reason: reason.value }).then(function (r) {
+            var taken = r && r.result && r.result.amount !== undefined ? r.result.amount : amt;
+            self._toast('Fined ' + taken + (taken === 1 ? ' coin' : ' coins'), true);
+          });
+        } }]
+      });
     }
 
     _giftForm(preTo) {
@@ -1477,6 +1519,7 @@
         ]));
       });
       racers.appendChild(h('button', { cls: 'btn gold', style: 'width:100%;margin-top:6px', onclick: function () { self._giftForm(); } }, [ic('mdi:hand-coin'), ' Send coins']));
+      racers.appendChild(h('button', { cls: 'btn', style: 'width:100%;margin-top:6px', onclick: function () { self._fineForm(); } }, [ic('mdi:gavel'), ' Fine']));
       racers.appendChild(h('button', { cls: 'btn go', style: 'width:100%;margin-top:6px', onclick: function () { self._memberForm(null); } }, [ic('mdi:plus'), ' New racer']));
       return racers;
     }
@@ -1906,6 +1949,7 @@
       var nTonight = picker([{ v: 'on', label: 'On - Nabu Flow bar shows quests left' }, { v: 'off', label: 'Off' }], [st.nabu_tonight === false ? 'off' : 'on'], false);
       var nNotify = picker([{ v: 'on', label: 'On - send pushes and Discord through Nabu Flow' }, { v: 'off', label: 'Off - use the notify service above' }], [st.nabu_notify === false ? 'off' : 'on'], false);
       var nRedeem = picker([{ v: 'on', label: 'On - Nabu Flow bar shows prizes' }, { v: 'off', label: 'Off' }], [st.nabu_redeem === false ? 'off' : 'on'], false);
+      var nFine = picker([{ v: 'on', label: 'On - Nabu Flow bar shows fines for 15 min' }, { v: 'off', label: 'Off' }], [st.nabu_fine === false ? 'off' : 'on'], false);
       var nRemind = h('input', { cls: 'inp', type: 'text', value: st.nabu_remind || '', placeholder: '19:30 (blank = no reminder)', maxlength: '5' });
       var phaseOn = picker([{ v: 'on', label: 'On - show only quests for now' }, { v: 'off', label: 'Off - show every quest' }], [st.phase_filter === false ? 'off' : 'on'], false);
       this._openModal({
@@ -1921,13 +1965,14 @@
           field('Nabu Flow: open quests alert', nTonight.el),
           field('Nabu Flow: prize notifications (replaces the notify service when Nabu Flow is installed)', nNotify.el),
           field('Nabu Flow: prize redeemed alert', nRedeem.el),
+          field('Nabu Flow: fine alert', nFine.el),
           field('Nabu Flow: Discord reminder if quests are still open at (HH:MM)', nRemind)
         ],
         actions: [{ label: 'Cancel', cls: 'alt' }, { label: 'Save', cls: 'go', fn: function () {
           var payload = {
             all_done_bonus: parseInt(bonus.value, 10) || 0, notify_service: svc.value,
             day_start_hour: parseInt(dayStart.value, 10) || 0, phase_entity: phaseIn.value, work_anchor: workIn.value, phase_filter: (phaseOn.get()[0] || 'on') === 'on',
-            nabu_tonight: (nTonight.get()[0] || 'on') === 'on', nabu_redeem: (nRedeem.get()[0] || 'on') === 'on', nabu_notify: (nNotify.get()[0] || 'on') === 'on', nabu_remind: nRemind.value.trim()
+            nabu_tonight: (nTonight.get()[0] || 'on') === 'on', nabu_redeem: (nRedeem.get()[0] || 'on') === 'on', nabu_fine: (nFine.get()[0] || 'on') === 'on', nabu_notify: (nNotify.get()[0] || 'on') === 'on', nabu_remind: nRemind.value.trim()
           };
           var newPin = pin.value.replace(/\D/g, '');
           if (newPin) { payload.pin = newPin; }

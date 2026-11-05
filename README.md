@@ -168,6 +168,7 @@ data:
 |---|---|
 | `chore_quest_updated` | Anything changed (the cards listen to this) |
 | `chore_quest_redeemed` | A prize was redeemed |
+| `chore_quest_fined` | A racer was fined (`member`, `amount`, `reason`) |
 
 ## Data and backups
 

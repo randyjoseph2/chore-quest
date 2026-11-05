@@ -22,10 +22,11 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "3.5.3"
+VERSION = "3.6.0"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
+EVENT_FINED = "chore_quest_fined"
 LEDGER_MAX = 1500
 KEEP_DAYS = 120
 EARN_KINDS = {"chore", "bonus", "undo", "bonus_undo"}
@@ -42,6 +43,7 @@ ADMIN_ACTIONS = {
     "delete_area",
     "adjust",
     "gift",
+    "fine",
     "set_stats",
     "set_settings",
 }
@@ -59,6 +61,7 @@ DEFAULT_SETTINGS = {
     "work_anchor": "2026-10-19",
     "nabu_tonight": True,
     "nabu_redeem": True,
+    "nabu_fine": True,
     "nabu_remind": "19:30",
     "nabu_notify": True,
 }
@@ -484,7 +487,7 @@ class ChoreQuest:
     def _blank_stats() -> dict:
         return {"earned": 0, "spent": 0, "quests": 0, "gifted": 0, "sent": 0,
                 "best_day": {"coins": 0, "date": ""}, "best_streak": 0, "day": {"date": "", "coins": 0},
-                "by_chore": {}, "race_wins": 0, "gp_wins": 0}
+                "by_chore": {}, "race_wins": 0, "gp_wins": 0, "fined": 0}
 
     def stats_of(self, m: dict) -> dict:
         st = m.setdefault("stats", self._blank_stats())
@@ -511,6 +514,8 @@ class ChoreQuest:
                 best["coins"] = st["day"]["coins"]
         elif kind == "redeem":
             st["spent"] += max(0, -delta)
+        elif kind == "fine":
+            st["fined"] = st.get("fined", 0) + max(0, -delta)
         elif kind == "gift_in" or (kind == "adjust" and delta > 0):
             st["gifted"] += max(0, delta)
         elif kind == "gift_out":
@@ -809,6 +814,26 @@ class ChoreQuest:
         except Exception:  # noqa: BLE001
             _LOGGER.warning("Chore Quest could not raise its prize alert")
 
+    async def _nabu_fined(self, who: str, amount: int, reason: str) -> None:
+        if not self.data["settings"].get("nabu_fine", True) or not self._nabu_has("alert"):
+            return
+        try:
+            await self.hass.services.async_call(
+                "nabu_flow",
+                "alert",
+                {
+                    "id": "chore_quest_fine",
+                    "name": "Fined",
+                    "message": "%s fined %d coins: %s" % (who, amount, reason),
+                    "priority": "warning",
+                    "icon": "mdi:gavel",
+                    "duration": 900,
+                },
+                blocking=False,
+            )
+        except Exception:  # noqa: BLE001
+            _LOGGER.warning("Chore Quest could not raise its fine alert")
+
     def track_reminder(self) -> None:
         """Optional Discord nudge through Nabu Flow if quests are still open at a set time (HH:MM)."""
         if self._remind_unsub:
@@ -1063,6 +1088,28 @@ class ChoreQuest:
         await self._notify("Prize redeemed", "%s spent %d coins on %s" % (m["name"], cost, prize["name"]))
         await self._nabu_redeemed(m["name"], prize["name"], cost)
         return {"prize": prize["name"], "cost": cost}
+
+    async def _a_fine(self, p: dict) -> dict:
+        """Take coins from a racer for bad behavior. Parent only (PIN), needs a reason."""
+        m = self.member(p.get("member_id"))
+        if not m:
+            raise ValueError("Pick who is being fined")
+        amount = _clean_int(p.get("amount"), 0, 1000, 0)
+        if amount <= 0:
+            raise ValueError("Enter an amount")
+        reason = _clean_str(p.get("reason"), 60)
+        if not reason:
+            raise ValueError("Enter a reason")
+        taken = min(amount, int(m["coins"]))
+        m["coins"] -= taken
+        self.log(m["id"], -taken, "fine", "Fined: " + reason, {"asked": amount})
+        self.hass.bus.async_fire(
+            EVENT_FINED,
+            {"member": m["name"], "member_id": m["id"], "amount": taken, "reason": reason},
+        )
+        await self._notify("Fined", "%s fined %d coins: %s" % (m["name"], taken, reason))
+        await self._nabu_fined(m["name"], taken, reason)
+        return {"amount": taken}
 
     async def _notify(self, title: str, message: str) -> None:
         if self.data["settings"].get("nabu_notify", True) and self._nabu_has("notify"):
@@ -1347,6 +1394,8 @@ class ChoreQuest:
             s["nabu_notify"] = bool(p.get("nabu_notify"))
         if "nabu_redeem" in p:
             s["nabu_redeem"] = bool(p.get("nabu_redeem"))
+        if "nabu_fine" in p:
+            s["nabu_fine"] = bool(p.get("nabu_fine"))
         if "nabu_remind" in p:
             raw = str(p.get("nabu_remind") or "").strip()
             if raw and not re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", raw):

@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.6.0
+- **Fines.** A new Fine button (Cup tab and Parent tab, gavel icon) takes coins from a racer for bad behavior. Pick the racer, an amount, and a required reason (quick chips like "Not listening" or type your own). It uses the Parent PIN, same as Send coins, and the fine shows in Today's history in red.
+- A fine raises a 15 minute alert in the Nabu Flow bar ("Parker fined 4 coins: Hitting"), the same way prizes do, and sends a Nabu Flow notification. Turn the alert off in Settings.
+- A fine never takes more than the racer has (the balance stops at 0). Lifetime fined coins are tracked per racer.
+- New `chore_quest_fined` event for automations.
+
 ## 3.5.3
 - The card is now registered as a Lovelace dashboard resource (the same way HACS cards are), and kept up to date by the integration on every version. Before, it was injected as an extra page script, which could finish loading after the dashboard had drawn its cards, leaving the red "Custom element doesn't exist" box on the compact tile and the big chores page. If your Home Assistant uses YAML-mode resources, it falls back to the old way.
 - Loading the card file twice (resource plus the old script) is now harmless.
