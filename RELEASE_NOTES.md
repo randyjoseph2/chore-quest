@@ -1,9 +1,7 @@
-# Chore Quest 3.6.1
+# Chore Quest 3.6.2
 
 ## What's new
-- **Fine screen makeover.** Red theme, turning gear, negative amounts.
-- **Fined by.** Pick which parent is fining; auto-selected when you are logged in.
-- **Tidier Coin bank buttons.**
+- **Lifetime fines** on the Cup tab's Lifetime stats cards (red, negative, with a count).
 
 ## Updating
 Update in HACS, restart Home Assistant, then hard-refresh your dashboards.

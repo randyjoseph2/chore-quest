@@ -1,5 +1,8 @@
 # Changelog
 
+## 3.6.2
+- Lifetime stats now show each racer's lifetime fines (red, negative, with how many times) once they have any. Also a new `lifetime_fined` attribute on each racer's coin sensor.
+
 ## 3.6.1
 - The Fine screen now has a red "trouble" look with a turning gear and a gavel on top, red selected buttons, and a red Fine button. Amounts show as negative (-1, -5, -10, -25) to read as a loss.
 - New "Fined by" choice (the adults). When Randy or Sam opens it logged in, their own name is already selected; on the shared tablet nothing is selected, so a parent picks. The name is saved in History, the Nabu Flow banner and the `chore_quest_fined` event (`by`).

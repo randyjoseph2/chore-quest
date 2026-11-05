@@ -4,7 +4,7 @@
  */
 (function () {
   if (customElements.get('chore-quest-card')) { return; }
-  var CARD_VERSION = '3.6.1';
+  var CARD_VERSION = '3.6.2';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -1231,6 +1231,12 @@
         if (st.race_wins) { card.appendChild(row('Race wins', st.race_wins, false, false)); }
         if (st.gp_wins) { card.appendChild(row('Grand Prix wins', st.gp_wins, false, false)); }
         if (st.gifted) { card.appendChild(row('Gifts', st.gifted, false, true)); }
+        if (st.fined) {
+          card.appendChild(h('div', { cls: 'sr' }, [
+            h('span', { text: 'Fines' + (st.fines ? ' (' + st.fines + 'x)' : '') }),
+            h('b', { style: 'color:#ff6b78' }, [coin(16), '-' + st.fined])
+          ]));
+        }
         grid.appendChild(card);
       });
       box.appendChild(grid);

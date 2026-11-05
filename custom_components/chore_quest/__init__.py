@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "3.6.1"
+VERSION = "3.6.2"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -487,7 +487,7 @@ class ChoreQuest:
     def _blank_stats() -> dict:
         return {"earned": 0, "spent": 0, "quests": 0, "gifted": 0, "sent": 0,
                 "best_day": {"coins": 0, "date": ""}, "best_streak": 0, "day": {"date": "", "coins": 0},
-                "by_chore": {}, "race_wins": 0, "gp_wins": 0, "fined": 0}
+                "by_chore": {}, "race_wins": 0, "gp_wins": 0, "fined": 0, "fines": 0}
 
     def stats_of(self, m: dict) -> dict:
         st = m.setdefault("stats", self._blank_stats())
@@ -516,6 +516,7 @@ class ChoreQuest:
             st["spent"] += max(0, -delta)
         elif kind == "fine":
             st["fined"] = st.get("fined", 0) + max(0, -delta)
+            st["fines"] = st.get("fines", 0) + 1
         elif kind == "gift_in" or (kind == "adjust" and delta > 0):
             st["gifted"] += max(0, delta)
         elif kind == "gift_out":
@@ -896,6 +897,7 @@ class ChoreQuest:
                     "lifetime_earned": self.stats_of(self.member(m["id"]))["earned"],
                     "lifetime_spent": self.stats_of(self.member(m["id"]))["spent"],
                     "lifetime_gifted": self.stats_of(self.member(m["id"]))["gifted"],
+                    "lifetime_fined": self.stats_of(self.member(m["id"]))["fined"],
                     "chores_total": m["total"],
                     "chores_left": m["left"],
                     "chores_left_now": m["left_now"],
