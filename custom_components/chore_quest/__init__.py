@@ -22,7 +22,7 @@ DOMAIN = "chore_quest"
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 STORAGE_VERSION = 1
-VERSION = "3.6.0"
+VERSION = "3.6.1"
 SCHEMA = 4
 EVENT_UPDATED = "chore_quest_updated"
 EVENT_REDEEMED = "chore_quest_redeemed"
@@ -814,7 +814,7 @@ class ChoreQuest:
         except Exception:  # noqa: BLE001
             _LOGGER.warning("Chore Quest could not raise its prize alert")
 
-    async def _nabu_fined(self, who: str, amount: int, reason: str) -> None:
+    async def _nabu_fined(self, who: str, amount: int, reason: str, by: str = "") -> None:
         if not self.data["settings"].get("nabu_fine", True) or not self._nabu_has("alert"):
             return
         try:
@@ -824,7 +824,7 @@ class ChoreQuest:
                 {
                     "id": "chore_quest_fine",
                     "name": "Fined",
-                    "message": "%s fined %d coins: %s" % (who, amount, reason),
+                    "message": "%s fined %d coins: %s%s" % (who, amount, reason, " (by %s)" % by if by else ""),
                     "priority": "warning",
                     "icon": "mdi:gavel",
                     "duration": 900,
@@ -1100,15 +1100,17 @@ class ChoreQuest:
         reason = _clean_str(p.get("reason"), 60)
         if not reason:
             raise ValueError("Enter a reason")
+        by = self.member(p.get("by_id")) if p.get("by_id") else None
+        by_name = by["name"] if by else ""
         taken = min(amount, int(m["coins"]))
         m["coins"] -= taken
-        self.log(m["id"], -taken, "fine", "Fined: " + reason, {"asked": amount})
+        self.log(m["id"], -taken, "fine", "Fined: " + reason + (" (by %s)" % by_name if by_name else ""), {"asked": amount, "by": by_name})
         self.hass.bus.async_fire(
             EVENT_FINED,
-            {"member": m["name"], "member_id": m["id"], "amount": taken, "reason": reason},
+            {"member": m["name"], "member_id": m["id"], "amount": taken, "reason": reason, "by": by_name},
         )
-        await self._notify("Fined", "%s fined %d coins: %s" % (m["name"], taken, reason))
-        await self._nabu_fined(m["name"], taken, reason)
+        await self._notify("Fined", "%s fined %d coins: %s%s" % (m["name"], taken, reason, " (by %s)" % by_name if by_name else ""))
+        await self._nabu_fined(m["name"], taken, reason, by_name)
         return {"amount": taken}
 
     async def _notify(self, title: str, message: str) -> None:

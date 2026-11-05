@@ -4,7 +4,7 @@
  */
 (function () {
   if (customElements.get('chore-quest-card')) { return; }
-  var CARD_VERSION = '3.6.0';
+  var CARD_VERSION = '3.6.1';
   var DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
   var PALETTE = ['#ff4757', '#3b82f6', '#22c55e', '#ff9f1a', '#a855f7', '#ff5fa2', '#14b8a6', '#ffd23f'];
@@ -144,7 +144,26 @@
     '.scard .sr{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;font-size:13px;font-weight:800;color:rgba(230,233,255,.8)}',
     '.scard .sr b{display:flex;align-items:center;gap:4px;font-size:15px;color:#fff}',
     '.scard .sr.big b{color:#ffd23f;font-size:18px}',
-    '.hrow{display:flex;align-items:center;justify-content:space-between;gap:8px}',
+    '.hrow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 12px;margin:6px 0 10px}',
+    '.hrow .h2{margin:0;flex:1 1 auto}',
+    '.hbtns{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}',
+    '.btn.red{background:linear-gradient(180deg,#ff5a68,#d62839);color:#fff;border-color:#ff8a94}',
+    '.md.fine{background:radial-gradient(circle at 50% 0,#4a1020 0,#220a16 62%);border-color:#ff4757;box-shadow:0 8px 0 rgba(0,0,0,.5),0 0 34px rgba(255,71,87,.35)}',
+    '.md.fine .mt{color:#ff7b86;margin-bottom:12px}',
+    '.md.fine .cp.on{background:#ff4757;color:#fff;border-color:#ff4757}',
+    '.md.fine .cp{border-color:rgba(255,120,130,.35)}',
+    '.md.fine .inp{border-color:rgba(255,120,130,.45)}',
+    '.md.fine .step2 b{color:#ff6b78;font-size:30px}',
+    '.fhero{position:relative;width:92px;height:92px;margin:2px auto 6px;display:grid;place-items:center;color:#ff4757}',
+    '.fhero .gear{position:absolute;inset:0;display:grid;place-items:center;animation:cogspin 14s linear infinite;filter:drop-shadow(0 0 10px rgba(255,71,87,.55))}',
+    '.fhero .gear ha-icon{--mdc-icon-size:92px;width:92px;height:92px;opacity:.9}',
+    '.fhero .gear.in{animation-direction:reverse;animation-duration:9s}',
+    '.fhero .gear.in ha-icon{--mdc-icon-size:64px;width:64px;height:64px;opacity:.4}',
+    '.fhero .gav{position:relative;color:#fff;animation:gavel 1.8s ease-in-out infinite;transform-origin:70% 80%}',
+    '.fhero .gav ha-icon{--mdc-icon-size:38px;width:38px;height:38px}',
+    '@keyframes cogspin{to{transform:rotate(360deg)}}',
+    '@keyframes gavel{0%,70%,100%{transform:rotate(0)}80%{transform:rotate(-22deg)}90%{transform:rotate(8deg)}}',
+    '@media (prefers-reduced-motion:reduce){.fhero .gear,.fhero .gav{animation:none}}',
     '.bumpb{flex:none;width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}',
     '.bumpb:active{background:rgba(255,255,255,.2)}',
     '.bumptag{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:900;color:#c9ceff}',
@@ -286,6 +305,34 @@
     return h('span', { cls: 'bank', style: size ? 'font-size:' + size + 'px' : '' }, [coin(size ? size : 24), String(n)]);
   }
   function field(label, node) { return h('div', null, [h('span', { cls: 'fl', text: label }), node]); }
+
+  function gearSvg(ro, ri, hole, teeth, solid, op) {
+    var NS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '-50 -50 100 100');
+    svg.setAttribute('width', ro > 40 ? '92' : '66');
+    svg.setAttribute('height', ro > 40 ? '92' : '66');
+    var pts = [];
+    var step = Math.PI * 2 / teeth;
+    for (var i = 0; i < teeth; i++) {
+      var a = i * step;
+      var f = [[-0.34, ri], [-0.2, ro], [0.2, ro], [0.34, ri]];
+      for (var k = 0; k < f.length; k++) {
+        var ang = a + f[k][0] * step;
+        pts.push((Math.cos(ang) * f[k][1]).toFixed(1) + ',' + (Math.sin(ang) * f[k][1]).toFixed(1));
+      }
+    }
+    var path = document.createElementNS(NS, 'path');
+    var hp = 'M' + hole + ',0 A' + hole + ',' + hole + ' 0 1,0 ' + (-hole) + ',0 A' + hole + ',' + hole + ' 0 1,0 ' + hole + ',0 Z';
+    path.setAttribute('d', 'M' + pts.join(' L') + ' Z ' + hp);
+    path.setAttribute('fill-rule', 'evenodd');
+    path.setAttribute('fill', solid ? 'currentColor' : 'none');
+    path.setAttribute('stroke', 'currentColor');
+    path.setAttribute('stroke-width', solid ? '0' : '3');
+    path.setAttribute('opacity', String(op));
+    svg.appendChild(path);
+    return svg;
+  }
 
   function picker(options, selected, multi, onchange) {
     var sel = selected.slice();
@@ -1138,8 +1185,10 @@
       });
       wrap.appendChild(h('div', { cls: 'hrow' }, [
         h('div', { cls: 'h2', text: 'Coin bank' }),
-        h('button', { cls: 'btn sm gold', type: 'button', onclick: function () { self._giftForm(); } }, [ic('mdi:hand-coin', 18), ' Send coins']),
-        h('button', { cls: 'btn sm', type: 'button', onclick: function () { self._fineForm(); } }, [ic('mdi:gavel', 18), ' Fine'])
+        h('div', { cls: 'hbtns' }, [
+          h('button', { cls: 'btn sm gold', type: 'button', onclick: function () { self._giftForm(); } }, [ic('mdi:hand-coin', 18), ' Send coins']),
+          h('button', { cls: 'btn sm red', type: 'button', onclick: function () { self._fineForm(); } }, [ic('mdi:gavel', 18), ' Fine'])
+        ])
       ]));
       var bank = h('div', { cls: 'chips' });
       s.members.forEach(function (m) {
@@ -1199,16 +1248,21 @@
       var pool = kids.length ? kids : s.members;
       var opts = pool.map(function (m) { return { v: m.id, label: m.name + ' (' + m.coins + ')', color: m.color }; });
       var who = picker(opts, [preTo || (pool[0] ? pool[0].id : '')], false);
+      var adults = s.members.filter(function (m) { return m.role === 'adult'; });
+      var viewer = this._viewer();
+      var byDef = (viewer && viewer.role === 'adult') ? viewer.id : '';
+      var by = adults.length ? picker(adults.map(function (m) { return { v: m.id, label: m.name, color: m.color }; }), byDef ? [byDef] : [], false) : null;
       var amt = 1;
-      var amtNum = h('b', { text: '1' });
+      var amtNum = h('b', { text: '-1' });
+      var paintAmt = function () { amtNum.textContent = '-' + amt; };
       var stepper = h('div', { cls: 'step2' }, [
-        h('button', { cls: 'btn sm', type: 'button', text: '-', onclick: function () { amt = Math.max(1, amt - 1); amtNum.textContent = String(amt); } }),
+        h('button', { cls: 'btn sm', type: 'button', text: '-', onclick: function () { amt = Math.max(1, amt - 1); paintAmt(); } }),
         amtNum, coin(26),
-        h('button', { cls: 'btn sm', type: 'button', text: '+', onclick: function () { amt = Math.min(1000, amt + 1); amtNum.textContent = String(amt); } })
+        h('button', { cls: 'btn sm', type: 'button', text: '+', onclick: function () { amt = Math.min(1000, amt + 1); paintAmt(); } })
       ]);
       var quick = h('div', { cls: 'chips', style: 'margin-top:8px' });
       [1, 5, 10, 25].forEach(function (n) {
-        quick.appendChild(h('button', { cls: 'cp', type: 'button', text: '+' + n, onclick: function () { amt = Math.min(1000, amt + n); amtNum.textContent = String(amt); } }));
+        quick.appendChild(h('button', { cls: 'cp', type: 'button', text: '-' + n, onclick: function () { amt = Math.min(1000, amt + n); paintAmt(); } }));
       });
       var reason = h('input', { cls: 'inp', type: 'text', placeholder: 'Reason (required)', maxlength: '60' });
       var why = h('div', { cls: 'chips', style: 'margin-top:8px' });
@@ -1217,17 +1271,26 @@
       });
       var needPin = s.settings.has_pin && !this._unlocked();
       var pinIn = needPin ? h('input', { cls: 'inp', type: 'password', inputmode: 'numeric', placeholder: 'PIN', maxlength: '8' }) : null;
-      var body = [field('Who', who.el), field('Fine (coins)', h('div', null, [stepper, quick])), field('Reason', h('div', null, [reason, why]))];
+      var hero = h('div', { cls: 'fhero' }, [
+        h('div', { cls: 'gear' }, [gearSvg(46, 37, 12, 10, 1, 0.9)]),
+        h('div', { cls: 'gear in' }, [gearSvg(34, 27, 9, 8, 0, 0.45)]),
+        h('div', { cls: 'gav' }, [ic('mdi:gavel')])
+      ]);
+      var body = [field('Who', who.el), field('Fine (coins lost)', h('div', null, [stepper, quick])), field('Reason', h('div', null, [reason, why]))];
+      if (by) { body.push(field('Fined by', by.el)); }
       if (pinIn) { body.push(field('Parent PIN', pinIn)); }
       this._openModal({
         title: 'Fine',
+        cls: 'fine',
+        hero: hero,
         body: body,
-        actions: [{ label: 'Cancel', cls: 'alt' }, { label: 'Fine', cls: 'go', fn: function () {
+        actions: [{ label: 'Cancel', cls: 'alt' }, { label: 'Fine', cls: 'no', fn: function () {
           if (!reason.value.trim()) { return Promise.reject(new Error('Enter a reason')); }
+          if (by && !by.get()[0]) { return Promise.reject(new Error('Pick which parent is fining')); }
           if (pinIn) { self._pin = pinIn.value; }
-          return self._admin('fine', { member_id: who.get()[0] || '', amount: amt, reason: reason.value }).then(function (r) {
+          return self._admin('fine', { member_id: who.get()[0] || '', amount: amt, reason: reason.value, by_id: by ? (by.get()[0] || '') : '' }).then(function (r) {
             var taken = r && r.result && r.result.amount !== undefined ? r.result.amount : amt;
-            self._toast('Fined ' + taken + (taken === 1 ? ' coin' : ' coins'), true);
+            self._toast('Fined -' + taken + (taken === 1 ? ' coin' : ' coins'), true);
           });
         } }]
       });
@@ -1519,7 +1582,7 @@
         ]));
       });
       racers.appendChild(h('button', { cls: 'btn gold', style: 'width:100%;margin-top:6px', onclick: function () { self._giftForm(); } }, [ic('mdi:hand-coin'), ' Send coins']));
-      racers.appendChild(h('button', { cls: 'btn', style: 'width:100%;margin-top:6px', onclick: function () { self._fineForm(); } }, [ic('mdi:gavel'), ' Fine']));
+      racers.appendChild(h('button', { cls: 'btn red', style: 'width:100%;margin-top:6px', onclick: function () { self._fineForm(); } }, [ic('mdi:gavel'), ' Fine']));
       racers.appendChild(h('button', { cls: 'btn go', style: 'width:100%;margin-top:6px', onclick: function () { self._memberForm(null); } }, [ic('mdi:plus'), ' New racer']));
       return racers;
     }
@@ -1652,7 +1715,8 @@
     _openModal(opts) {
       var self = this;
       this._ovl.textContent = '';
-      var box = h('div', { cls: 'md' });
+      var box = h('div', { cls: 'md' + (opts.cls ? ' ' + opts.cls : '') });
+      if (opts.hero) { box.appendChild(opts.hero); }
       if (opts.title) { box.appendChild(h('div', { cls: 'mt', text: opts.title })); }
       (opts.body || []).forEach(function (n) { if (n) { box.appendChild(n); } });
       var row = h('div', { cls: 'mrow' });

@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.6.1
+- The Fine screen now has a red "trouble" look with a turning gear and a gavel on top, red selected buttons, and a red Fine button. Amounts show as negative (-1, -5, -10, -25) to read as a loss.
+- New "Fined by" choice (the adults). When Randy or Sam opens it logged in, their own name is already selected; on the shared tablet nothing is selected, so a parent picks. The name is saved in History, the Nabu Flow banner and the `chore_quest_fined` event (`by`).
+- The Coin bank header (Send coins and Fine buttons) is tidied: the buttons sit together on the right, and wrap neatly on narrow screens.
+
 ## 3.6.0
 - **Fines.** A new Fine button (Cup tab and Parent tab, gavel icon) takes coins from a racer for bad behavior. Pick the racer, an amount, and a required reason (quick chips like "Not listening" or type your own). It uses the Parent PIN, same as Send coins, and the fine shows in Today's history in red.
 - A fine raises a 15 minute alert in the Nabu Flow bar ("Parker fined 4 coins: Hitting"), the same way prizes do, and sends a Nabu Flow notification. Turn the alert off in Settings.
